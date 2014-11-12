@@ -7,19 +7,21 @@
 
 #include <stdio.h>
 #include "domain_distribution.h"
-//#include <malloc.h>
+#include <malloc.h>
+#include <metis.h>
 
 void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nintcf_loc, int *nextci_loc,
                    int *nextcf_loc, int type, int nprocs, int myrank,
                    int nintci, int nintcf, int nextci,
-                   int nextcf, int** lcc) {
+                   int nextcf, int** lcc, int** elems) {
   
   *nintci_loc = 0;
-  
+      int i, NC;
+      
   if (type == 0) {
     int start_int, stop_int, quotient_int, remainder_int, num_terms_int;
     int start_ext, stop_ext, quotient_ext, remainder_ext, num_terms_ext;
-    int i;
+
   
     // Calculation of the indices of the int cells for each process
     
@@ -48,19 +50,55 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     
     *local_global_index = (int*)malloc( ((stop_int - start_int) + (stop_ext - start_ext))*sizeof(int) );
     
-    printf("\nInner cells:\n");
+ //   printf("\nInner cells:\n");
     for (i=*nintci_loc; i <= *nintcf_loc; i++) {
       (*local_global_index)[i] = start_int + i;
-      printf("\n%d\t%d", i, (*local_global_index)[i]);
+   //   printf("\n%d\t%d", i, (*local_global_index)[i]);
     }
 
-    printf("\nBoundary cells:\n");
+  //  printf("\nBoundary cells:\n");
     for (i=*nextci_loc; i <= *nextcf_loc; i++) {
       (*local_global_index)[i] = start_ext + i;
-      printf("\n%d\t%d", i, (*local_global_index)[i]);
+   //   printf("\n%d\t%d", i, (*local_global_index)[i]);
     }
   
   } 
+
+  else if (type == 1) {
+    
+    idx_t options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_VOL;
+    
+    idx_t *eind = (idx_t*) malloc( 8*(nintcf - nintci + 1)*sizeof(idx_t) );
+    idx_t *eptr = (idx_t*) malloc( (nintcf - nintci + 1)*sizeof(idx_t) );
+    
+    for (NC=0; NC<(nintcf - nintci + 1); NC++) {
+      
+      eptr[NC] = 8*NC;
+      
+      for (i=0; i<8; i++) {
+	
+	eind[8*NC + i] = elems[i][NC];
+	
+      }
+      
+    }
+    
+    idx_t ne, nn, ncommon, objval ;
+    
+    idx_t *epart;
+    idx_t *npart;
+    
+    ncommon = 4;
+    
+    METIS_PartMeshDual(&ne, &nn, eptr, eind, NULL, NULL, &ncommon, &nprocs, NULL, NULL, &objval, epart, npart);
+    
+    free(eptr);
+    free(eind);
+    
+  }
+
+
+
   //free(local_global_index); 
 }
 

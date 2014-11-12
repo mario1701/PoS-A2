@@ -13,7 +13,7 @@
 void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nintcf_loc, int *nextci_loc,
                    int *nextcf_loc, int type, int nprocs, int myrank,
                    int nintci, int nintcf, int nextci,
-                   int nextcf, int** lcc);
+                   int nextcf, int** lcc, int** elems);
 /*
 void calc_array_size(int type, int nprocs, int myrank,
                    int nintci, int nintcf, int nextci,
