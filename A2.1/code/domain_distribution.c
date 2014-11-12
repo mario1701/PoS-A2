@@ -12,12 +12,28 @@
 #include <metis.h>
 
 void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nintcf_loc, int *nextci_loc,
-			     int *nextcf_loc, int type, int dual, int nprocs, int myrank,
+			     int *nextcf_loc, char *part_type, char*read_type, int nprocs, int myrank,
 			     int nintci, int nintcf, int nextci,
 			     int nextcf, int** lcc, int* elems, int points_count) {
   
   *nintci_loc = 0;
   int i, NC;
+int type, dual;
+
+if(strcmp(part_type, "classic")==0){
+type = 0;
+dual = 0;
+}
+
+if(strcmp(part_type, "dual")==0){
+type = 1;
+dual = 0;
+}
+
+if(strcmp(part_type, "nodal")==0){
+type = 1;
+dual = 1;
+}
   
   if (type == 0) {
     int start_int, stop_int, quotient_int, remainder_int, num_terms_int;

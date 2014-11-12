@@ -39,17 +39,7 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
 
     if ( f_status != 0 ) return f_status;
 
-   /*********************decide how to split the data*************************/
-   
-   
-   
-   
-   
-   
-   
-   
-   
-   
+     
    /************************data distribution*************************/
    
    /*local property*/
@@ -75,11 +65,17 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
       MPI_Status Status[6];
       
       if (0 == rank){
-      allread_calc_global_idx(.......rank = 0.........);
+      allread_calc_global_idx( &*local_global_index, &Nintci_loc, &Nintcf_loc, &Nextci_loc,
+			     int *nextcf_loc, int type, int dual, int nprocs, int myrank,
+			     int nintci, int nintcf, int nextci,
+			     int nextcf, int** lcc, int* elems, int points_count);
           for (int dest = 1; dest<nprocs; dest++){
             
             int XXXXXXXXXXXXXXXXXXX A BUNCH OF TEMP something For passing the data
-            allread_calc_global_idx(.......rank > 0.........);
+            allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nintcf_loc, int *nextci_loc,
+			     int *nextcf_loc, int type, int dual, int nprocs, int myrank,
+			     int nintci, int nintcf, int nextci,
+			     int nextcf, int** lcc, int* elems, int points_count);
             MPI_Send(&length_loc_index_temp,1,MPI_INT,dest,dest,MPI_COMM_WORLD);
             MPI_Send(&Nintci_loc_temp,1,MPI_INT,dest,dest,MPI_COMM_WORLD);
             MPI_Send(&Nintcf_loc_temp,1,MPI_INT,dest,dest,MPI_COMM_WORLD);
