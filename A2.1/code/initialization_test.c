@@ -37,10 +37,10 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
   {
     
     allread_calc_global_idx(&loc_global_index, &nintci_loc, &nintcf_loc, &nextci_loc,
-			    &nextcf_loc, 1, 4, r,
+			    &nextcf_loc, 1, 1, 4, r,
 			    *nintci, *nintcf, *nextci,
-			    *nextcf, *lcc, elems);
-    
+			    *nextcf, *lcc, *elems, *points_count);
+        printf("OK\n"); 
     for (i=nintci_loc; i <= nintcf_loc; i++) {
       //printf("%d\t%d\n", nintci_loc + i, loc_global_index[nintci_loc + i]);
       rank[loc_global_index[nintci_loc + i]] = r;
