@@ -9,6 +9,7 @@
 #include "domain_distribution.h"
 #include <malloc.h>
 #include <metis.h>
+#include <string.h>
 
 void compute_boundary_start(int** boundary_direct_access, int *num_terms_ext, int nextcf, int nextci, int nintci_loc, int nintcf_loc, int **lcc)  {
   

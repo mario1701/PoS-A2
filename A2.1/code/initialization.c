@@ -11,7 +11,7 @@
 #include "util_read_files.h"
 #include <string.h>
 #include "initialization.h"
-int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local, int points_count_local, int ***points_local, int **elems_local, int num_internal_cells, int num_cells, int *nintcf, int points_count, double **var, double **cgup, double **oc, double **cnorm);
+int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local,/* int points_count_local, int ***points_local, int **elems_local,*/ int num_internal_cells, int num_cells, int *nintcf, int points_count, double **var, double **cgup, double **oc, double **cnorm);
 
 
 int initialization(char* file_in, char* part_type, char* read_type, int nprocs, int myrank,
@@ -23,6 +23,8 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
     /********** START INITIALIZATION **********/
     int i = 0;
     int j = 0;
+
+
     /***************read-in the input file*********************/
     /*for oneread only processor 0 reads the data*/
     if (strcmp(read_type, "oneread") == 0 ) {
@@ -50,6 +52,15 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
    int num_internal_cells;
    int /*sendcount, recvcount,*/ source;
    int Nintci_loc, Nintcf_loc, Nextci_loc, Nextcf_loc;/*local index for the beginning and ending of internal/external cells*/
+
+
+/*initialize the array which will only be contained locally*/ 
+      int **LCC_local; 
+      double *bs_local, *be_local, *bn_local, *bw_local, *bh_local, *bl_local;
+      double *bp_local; 
+      double *su_local; 
+
+
    /*int length_loc_index;*/
   /*int local_global_index_temp*/
    
@@ -106,89 +117,60 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
       }
    }// strcmp(read_type, "oneread") == 0*/
    
-   if(strcmp(read_type, "allread") == 0){
-        allread_calc_global_idx( &*local_global_index, &Nintci_loc, &Nintcf_loc, &Nextci_loc,Nextcf_loc, *part_type, *read_type, nprocs, myrank, *nintci, *nintcf, *nextci, *nextcf, lcc, elems, *points_count);     
-  }  
+
+printf("OK2 \n");
+
+   if(strcmp(read_type, "allread") == 0){/**** 1****/
+        allread_calc_global_idx( &*local_global_index, &Nintci_loc, &Nintcf_loc, &Nextci_loc, &Nextcf_loc, part_type, read_type, nprocs, myrank, *nintci, *nintcf, *nextci, *nextcf, lcc, elems, *points_count);     
      
-   if(strcmp(read_type, "allread") == 0){
       num_cells = Nextcf_loc - Nintci_loc +1;
       num_internal_cells = Nintcf_loc - Nintci_loc +1;
       
  
-/*initialize the array which will only be contained locally*/ 
-      int **LCC_local; 
-      double *bs_local, *be_local, *bn_local, *bw_local, *bh_local, *bl_local;
-      double *bp_local; 
-      double *su_local;   
+printf("OK3 \n");
       
-      int points_count_local = *points_count;  
-      int** points_local;    /// coordinates of the points that define the cells - size [points_cnt][3]
-      int* elems_local;    /// definition of the cells using their nodes (points) - each cell has 8 points
-
     /************************ Array memory allocation *******************************/
         
-    memoryallocation(&LCC_local, &bs_local, &be_local,  &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, points_count_local, &points_local, &elems_local, num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
+    memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, /**points_count, &points_local, &elems_local,*/ num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
+
+printf("OK4 \n");
+
     /*****************   Read Data   ***************/
     /*read LCC for LCC_local*/
     for (i =Nintci_loc; i <=Nintcf_loc; i++){
         for (j = 0; j<6; j++){
-        LCC_local[i][j] = *lcc[*local_global_index[i]][j];
+        LCC_local[i][j] = (*lcc)[(*local_global_index)[i]][j];
         }
     }
-        
-
-    /*read arrays*/
+printf("OK5 \n");
+   /*read arrays*/
     for (i =Nintci_loc; i <=Nextcf_loc; i++){
-        bs_local[i] = *bs[*local_global_index[i]];
-        be_local[i] = *be[*local_global_index[i]];
-        bn_local[i] = *bn[*local_global_index[i]];
-        bw_local[i] = *bw[*local_global_index[i]];
-        bh_local[i] = *bh[*local_global_index[i]];
-        bl_local[i] = *bl[*local_global_index[i]];
-        bp_local[i] = *bp[*local_global_index[i]];
-        su_local[i] = *su[*local_global_index[i]];
+        bs_local[i] = (*bs)[(*local_global_index)[i]];
+        be_local[i] = (*be)[(*local_global_index)[i]];
+        bn_local[i] = (*bn)[(*local_global_index)[i]];
+        bw_local[i] = (*bw)[(*local_global_index)[i]];
+        bh_local[i] = (*bh)[(*local_global_index)[i]];
+        bl_local[i] = (*bl)[(*local_global_index)[i]];
+        bp_local[i] = (*bp)[(*local_global_index)[i]];
+        su_local[i] = (*su)[(*local_global_index)[i]];
     }
-   
 
-    // read elems
-    for ( i = Nintci_loc; i < (num_internal_cells); i++ ) {
-        for (j=0; j<8; j++)
-        {
-        elems_local[i*8+j]= *elems[*local_global_index[i]*8+j];
-        }
-        
-    }
-   
+printf("OK6 \n");
     
-    /*read points*/
-    int coordIdx;
-    int pointIdx;
-    for ( pointIdx = 0; pointIdx < *points_count; pointIdx++ ) {
-        for ( coordIdx = 0; coordIdx < 3; coordIdx++ ) {
-            /*!!!!!!!!!!!!!!!!!!!!!!!!!*/
-        }
-    }
-         
-   }//
-   
-   
-   
-   
-   /*************need to consider about how many memory do we need!!!**************/
     // initialize the arrays
     for ( i = 0; i <= 10; i++ ) {
         (*cnorm)[i] = 1.0;
     }
 
-    for ( i = (*nintci); i <= (*nintcf); i++ ) {
+    for ( i = Nintci_loc; i <= Nintcf_loc; i++ ) {
         (*var)[i] = 0.0;
     }
 
-    for ( i = (*nintci); i <= (*nintcf); i++ ) {
+    for ( i = Nintci_loc; i <= Nintcf_loc; i++ ) {
         (*cgup)[i] = 1.0 / ((*bp)[i]);
     }
 
-    for ( i = (*nextci); i <= (*nextcf); i++ ) {
+    for ( i = Nextci_loc; i <= Nextcf_loc; i++ ) {
         (*var)[i] = 0.0;
         (*cgup)[i] = 0.0;
         (*bs)[i] = 0.0;
@@ -197,12 +179,44 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
         (*bw)[i] = 0.0;
         (*bh)[i] = 0.0;
         (*bl)[i] = 0.0;
-    }
+    }     
+   
+}/******  1  ********/
+   
+/*exchange the memory name for local and global and free the global one*/
+      int **LCC_local_temp; 
+      double *bs_local_temp, *be_local_temp, *bn_local_temp, *bw_local_temp, *bh_local_temp, *bl_local_temp;
+      double *bp_local_temp; 
+      double *su_local_temp;
+
+LCC_local_temp = LCC_local; LCC_local = *lcc;  *lcc = LCC_local_temp;
+bs_local_temp = bs_local; bs_local = *bs;  *bs = bs_local_temp;
+be_local_temp = be_local; be_local = *be;  *be = be_local_temp;
+bn_local_temp = bn_local; bn_local = *bn;  *bn = bn_local_temp;
+bw_local_temp = bw_local; bw_local = *bw;  *bw = bw_local_temp;
+bh_local_temp = bh_local; bh_local = *bh;  *bh = bh_local_temp;
+bl_local_temp = bl_local; bl_local = *bl;  *bl = bl_local_temp;
+bp_local_temp = bp_local; bp_local = *bp;  *bp = bp_local_temp;
+su_local_temp = su_local; su_local = *su;  *su = su_local_temp;
+
+    free(su_local);
+    free(bp_local);
+    free(bh_local);
+    free(bl_local);
+    free(bw_local);
+    free(bn_local);
+    free(be_local);
+    free(bs_local);
+    free(LCC_local);
+
+
+ 
+
 
     return 0;
 }
 
-int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local, int points_count_local, int ***points_local, int **elems_local, int num_internal_cells, int num_cells, int *nintcf, int points_count, double **var, double **cgup, double **oc, double **cnorm){
+int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local, /*int points_count_local,int ***points_local, int **elems_local,*/ int num_internal_cells, int num_cells, int *nintcf, int points_count, double **var, double **cgup, double **oc, double **cnorm){
     // allocating LCC_local
   int i =0;  
   if ( (*LCC_local = (int**) malloc((num_internal_cells) * sizeof(int*))) == NULL ) {
@@ -258,14 +272,14 @@ int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, dou
         return -1;
     }
     
-    /* allocate elems*/
+ /*
     
     if ( (*elems_local = (int*) malloc((*nintcf + 1) * 8 * sizeof(int))) == NULL ) {
         fprintf(stderr, "malloc failed to allocate elems");
         return -1;
     }
     
-    /*Allocate Points*/
+   
     if ( (*points_local = (int **) calloc(points_count, sizeof(int*))) == NULL ) {
         fprintf(stderr, "malloc() POINTS 1st dim. failed\n");
         return -1;
@@ -276,10 +290,10 @@ int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, dou
             fprintf(stderr, "malloc() POINTS 2nd dim. failed\n");
             return -1;
         }
-    }
+    } */
     
 	/*allocate additional vectors for computation*/
-	*var = (double*) calloc(sizeof(double), (num_cells));
+    *var = (double*) calloc(sizeof(double), (num_cells));
     *cgup = (double*) calloc(sizeof(double), (num_cells));
     *cnorm = (double*) calloc(sizeof(double), (num_internal_cells));
 
