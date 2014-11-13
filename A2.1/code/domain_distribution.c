@@ -131,16 +131,17 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     
     ne = (nintcf - nintci + 1);//(nintcf - nintci + 2);
     nn = points_count; //8*(nintcf - nintci + 1); 
-    
+  
     idx_t *eind = (idx_t*) malloc( 8*ne*sizeof(idx_t) );
     idx_t *eptr = (idx_t*) malloc( (ne+1)*sizeof(idx_t) );
+
     
     for (NC=0; NC<ne+1; NC++) {
       
       eptr[NC] = 8*NC;
       
     }
-    
+
     for (i=0; i<8*ne; i++) {
       eind[i] = elems[i];
     }
@@ -150,13 +151,16 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     
     epart = (idx_t*) malloc( ne*sizeof(idx_t) );
     npart = (idx_t*) malloc( nn*sizeof(idx_t) );
-    
+  
     ncommon = 4;
     nparts = nprocs;
+
+printf("");
     
     if (dual == 1)
     {
       METIS_PartMeshDual(&ne, &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, &objval, epart, npart);
+ printf("ok!!!!!!!\n");  
     }
     else if (dual == 0)
     {
@@ -164,6 +168,7 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     }
     
     int el_count=0;
+
     
     for (NC=0; NC<ne; NC++) {
       
