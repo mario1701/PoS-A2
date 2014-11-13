@@ -95,17 +95,17 @@ int store_simulation_stats(char *in_file_name, char *out_file_name, int nintci, 
 
 void vtk_write_unstr_grid_header(const char *experiment_name, const char *out_file_name,
                                  int start_index, int end_index, int points_count, int **points,
-                                 int *elems ) {
+                                 int *elems, int rank, int timestep ) {
     int i, j;
     FILE *fp = NULL;
     // Total number of elements (cells)
     int elem_count = end_index - start_index + 1;
 
-    /*char szFileName[80];
-    sprintf(szFileName, "%s.%d.%i.vtk",out_file_name,rank,t)*/
-    fp = fopen(out_file_name, "w");
+    char szFileName[80];
+    sprintf(szFileName, "%s.%d.%i.vtk",out_file_name,rank,timestep);
+    fp = fopen(szFileName, "w");
     if ( fp == NULL ) {
-        fprintf(stderr, "Failed to open %s", out_file_name);
+        fprintf(stderr, "Failed to open %s", szFileName);
         return;
     }
 
