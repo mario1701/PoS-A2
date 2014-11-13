@@ -19,7 +19,7 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
 		   int*** points, int** elems, double** var, double** cgup, double** oc,
 		   double** cnorm, int** local_global_index) {
   /********** START INITIALIZATION **********/
-          printf("INIT!\n");
+  printf("INIT!\n");
   int i = 0;
   // read-in the input file
   int f_status = read_binary_geo(file_in, &*nintci, &*nintcf, &*nextci, &*nextcf, &*lcc, &*bs,
@@ -29,34 +29,66 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
   
   // ====================== For testing purposes ======================
   
-  int *loc_global_index;
-  int *rank = (int*) malloc(sizeof(int)*(*nintcf + 1));
-  int nintci_loc, nintcf_loc, nextci_loc, nextcf_loc;
-  int r;
-
-  for (r=0; r<4; r++)
-  {
-    
-    allread_calc_global_idx(&loc_global_index, &nintci_loc, &nintcf_loc, &nextci_loc,
-			    &nextcf_loc, part_type, read_type, 4, r,
-			    *nintci, *nintcf, *nextci,
-			    *nextcf, *lcc, *elems, *points_count);
-    
-    
-        printf("OK\n"); 
-    for (i=nintci_loc; i <= nintcf_loc; i++) {
-      //printf("%d\t%d\n", nintci_loc + i, loc_global_index[nintci_loc + i]);
-      rank[loc_global_index[nintci_loc + i]] = r;
-    }
-    
-    free(loc_global_index); 
-    
-  }
+  // For allread  
   
-  vtk_write_unstr_grid_header("a", "b.vtk", *nintci, *nintcf, *points_count, *points, *elems);
-  vtk_append_integer("b.vtk", "rank", *nintci, *nintcf, rank);
+      int *loc_global_index;
+      int *rank = (int*) malloc(sizeof(int)*(*nintcf + 1));
+      int nintci_loc, nintcf_loc, nextci_loc, nextcf_loc;
+      int r;
+    
+      for (r=0; r<4; r++)
+      {
+        
+        allread_calc_global_idx(&loc_global_index, &nintci_loc, &nintcf_loc, &nextci_loc,
+    			    &nextcf_loc, part_type, read_type, 4, r,
+    			    *nintci, *nintcf, *nextci,
+    			    *nextcf, *lcc, *elems, *points_count);
+    
+        for (i=nintci_loc; i <= nintcf_loc; i++) {
+          rank[loc_global_index[nintci_loc + i]] = r;
+        }
+        
+        free(loc_global_index); 
+      }
   
-  free(rank);
+  
+  // For oneread
+  
+//   int **loc_global_index;
+//   int *rank = (int*) malloc(sizeof(int)*(*nintcf + 1));
+//   int *nintci_loc, *nintcf_loc, *nextci_loc, *nextcf_loc;
+//   int r;
+//   
+//   oneread_calc_global_idx(&loc_global_index, &nintci_loc, &nintcf_loc, &nextci_loc,
+// 			  &nextcf_loc, part_type, read_type, 5,
+// 			  *nintci, *nintcf, *nextci,
+// 			  *nextcf, *lcc, *elems, *points_count);
+//   
+//   for (r=0;r<5;r++)
+//   {
+//     printf("%d\t%d\n", r, nintcf_loc[r]);
+//     for (i=nintci_loc[r]; i <= nintcf_loc[r]; i++) {
+// //       rank[loc_global_index[r][nintci_loc[r] + i]] = r;
+//     }
+//   }
+//   
+//   //TODO: free it as a 2D array
+//   //   for (r=0; r<4; r++)
+//   //   {
+//   //    free(loc_global_index[r]); 
+//   //   }
+//   //   free(loc_global_index); 
+//   free(nintcf_loc);
+//   free(nintci_loc);
+//   free(nextci_loc);
+//   free(nextcf_loc);
+  
+  
+  
+     vtk_write_unstr_grid_header("a", "b.vtk", *nintci, *nintcf, *points_count, *points, *elems);
+     vtk_append_integer("b.vtk", "rank", *nintci, *nintcf, rank);
+    
+    free(rank);
   
   // ====================== For testing purposes ======================
   
