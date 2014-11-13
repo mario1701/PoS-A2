@@ -19,6 +19,7 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
 		   int*** points, int** elems, double** var, double** cgup, double** oc,
 		   double** cnorm, int** local_global_index) {
   /********** START INITIALIZATION **********/
+          printf("INIT!\n");
   int i = 0;
   // read-in the input file
   int f_status = read_binary_geo(file_in, &*nintci, &*nintcf, &*nextci, &*nextcf, &*lcc, &*bs,
@@ -32,14 +33,16 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
   int *rank = (int*) malloc(sizeof(int)*(*nintcf + 1));
   int nintci_loc, nintcf_loc, nextci_loc, nextcf_loc;
   int r;
-  
+
   for (r=0; r<4; r++)
   {
     
     allread_calc_global_idx(&loc_global_index, &nintci_loc, &nintcf_loc, &nextci_loc,
-			    &nextcf_loc, 1, 1, 4, r,
+			    &nextcf_loc, part_type, read_type, 4, r,
 			    *nintci, *nintcf, *nextci,
 			    *nextcf, *lcc, *elems, *points_count);
+    
+    
         printf("OK\n"); 
     for (i=nintci_loc; i <= nintcf_loc; i++) {
       //printf("%d\t%d\n", nintci_loc + i, loc_global_index[nintci_loc + i]);
