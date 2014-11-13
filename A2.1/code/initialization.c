@@ -118,22 +118,22 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
    }// strcmp(read_type, "oneread") == 0*/
    
 
-printf("OK2 \n");
-
    if(strcmp(read_type, "allread") == 0){/**** 1****/
-        allread_calc_global_idx( &*local_global_index, &Nintci_loc, &Nintcf_loc, &Nextci_loc, &Nextcf_loc, part_type, read_type, nprocs, myrank, *nintci, *nintcf, *nextci, *nextcf, lcc, elems, *points_count);     
      
+allread_calc_global_idx( &(*local_global_index), &Nintci_loc, &Nintcf_loc, &Nextci_loc, &Nextcf_loc, part_type, read_type, nprocs, myrank, *nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count);     
+
+
+
       num_cells = Nextcf_loc - Nintci_loc +1;
       num_internal_cells = Nintcf_loc - Nintci_loc +1;
       
- 
-printf("OK3 \n");
+
       
     /************************ Array memory allocation *******************************/
         
     memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, /**points_count, &points_local, &elems_local,*/ num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
 
-printf("OK4 \n");
+
 
     /*****************   Read Data   ***************/
     /*read LCC for LCC_local*/
@@ -142,7 +142,7 @@ printf("OK4 \n");
         LCC_local[i][j] = (*lcc)[(*local_global_index)[i]][j];
         }
     }
-printf("OK5 \n");
+
    /*read arrays*/
     for (i =Nintci_loc; i <=Nextcf_loc; i++){
         bs_local[i] = (*bs)[(*local_global_index)[i]];
@@ -155,7 +155,6 @@ printf("OK5 \n");
         su_local[i] = (*su)[(*local_global_index)[i]];
     }
 
-printf("OK6 \n");
     
     // initialize the arrays
     for ( i = 0; i <= 10; i++ ) {
