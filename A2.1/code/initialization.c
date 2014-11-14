@@ -11,7 +11,7 @@
 #include "util_read_files.h"
 #include <string.h>
 #include "initialization.h"
-int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local,/* int points_count_local, int ***points_local, int **elems_local,*/ int num_internal_cells, int num_cells, int *nintcf, int points_count, double **var, double **cgup, double **oc, double **cnorm);
+int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local,int num_internal_cells, int num_cells, int *nintcf, int points_count, double **var, double **cgup, double **oc, double **cnorm);
 
 
 int initialization(char* file_in, char* part_type, char* read_type, int nprocs, int myrank,
@@ -42,8 +42,6 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
                                        &*points, &*elems);
 	if ( f_status != 0 ) return f_status;
     }
-
-
      
    /************************data distribution*************************/
    
@@ -52,7 +50,6 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
    int num_internal_cells;
    int /*sendcount, recvcount,*/ source;
    int Nintci_loc, Nintcf_loc, Nextci_loc, Nextcf_loc;/*local index for the beginning and ending of internal/external cells*/
-
 
 /*initialize the array which will only be contained locally*/ 
       int **LCC_local; 
@@ -120,20 +117,17 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
 
    if(strcmp(read_type, "allread") == 0){/**** 1****/
      
-allread_calc_global_idx( &(*local_global_index), &Nintci_loc, &Nintcf_loc, &Nextci_loc, &Nextcf_loc, part_type, read_type, nprocs, myrank, *nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count);     
-
-
+allread_calc_global_idx( &(*local_global_index), &Nintci_loc, &Nintcf_loc, &Nextci_loc, &Nextcf_loc, part_type, read_type, nprocs, myrank,/*2,0,*/ *nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count);     
 
       num_cells = Nextcf_loc - Nintci_loc +1;
       num_internal_cells = Nintcf_loc - Nintci_loc +1;
-      
 
-      
     /************************ Array memory allocation *******************************/
         
     memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, /**points_count, &points_local, &elems_local,*/ num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
 
 
+printf("the inside value for nintcf from processor %d is: %d!" ,myrank, num_internal_cells);  
 
     /*****************   Read Data   ***************/
     /*read LCC for LCC_local*/
@@ -155,7 +149,7 @@ allread_calc_global_idx( &(*local_global_index), &Nintci_loc, &Nintcf_loc, &Next
         su_local[i] = (*su)[(*local_global_index)[i]];
     }
 
-    
+
     // initialize the arrays
     for ( i = 0; i <= 10; i++ ) {
         (*cnorm)[i] = 1.0;
@@ -181,12 +175,18 @@ allread_calc_global_idx( &(*local_global_index), &Nintci_loc, &Nintcf_loc, &Next
     }     
    
 }/******  1  ********/
-   
+
 /*exchange the memory name for local and global and free the global one*/
-      int **LCC_local_temp; 
-      double *bs_local_temp, *be_local_temp, *bn_local_temp, *bw_local_temp, *bh_local_temp, *bl_local_temp;
-      double *bp_local_temp; 
-      double *su_local_temp;
+      int **LCC_local_temp=NULL; 
+      double *bs_local_temp=NULL;
+      double *be_local_temp = NULL;
+      double *bn_local_temp = NULL;
+      double *bw_local_temp = NULL; 
+      double *bh_local_temp = NULL;
+      double *bl_local_temp = NULL;
+      double *bp_local_temp = NULL; 
+      double *su_local_temp = NULL;
+
 
 LCC_local_temp = LCC_local; LCC_local = *lcc;  *lcc = LCC_local_temp;
 bs_local_temp = bs_local; bs_local = *bs;  *bs = bs_local_temp;
@@ -198,6 +198,10 @@ bl_local_temp = bl_local; bl_local = *bl;  *bl = bl_local_temp;
 bp_local_temp = bp_local; bp_local = *bp;  *bp = bp_local_temp;
 su_local_temp = su_local; su_local = *su;  *su = su_local_temp;
 
+/*if(0 == myrank){
+printf("LCC_local[17][2] = %d",(LCC_local)[17][2] );
+
+}*/
     free(su_local);
     free(bp_local);
     free(bh_local);
@@ -206,8 +210,31 @@ su_local_temp = su_local; su_local = *su;  *su = su_local_temp;
     free(bn_local);
     free(be_local);
     free(bs_local);
+
+
+for ( i = 0; i < (*nintcf + 1); i++ ) {
+        free(LCC_local[i]);
+    }
     free(LCC_local);
 
+//printf("OK for free no longer used global data lcc from processor %d !\n", myrank ); 
+   /* free(su_local_temp);
+    free(bp_local_temp);
+    free(bh_local_temp);
+    free(bl_local_temp);
+    free(bw_local_temp);
+    free(bn_local_temp);
+    free(be_local_temp);
+    free(bs_local_temp);*/
+   
+
+
+/*return back element information also to gloabl data */
+
+*nintci = Nintci_loc;
+*nintcf = Nintcf_loc;
+*nextci = Nextci_loc;
+*nextcf = Nextcf_loc;
 
  
 
