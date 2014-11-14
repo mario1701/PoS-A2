@@ -11,6 +11,7 @@
 #include "initialization.h"
 #include "domain_distribution.h"
 #include "util_write_files.h"
+#include "test_functions.h"
 
 int initialization(char* file_in, char* part_type, char* read_type, int nprocs, int myrank,
 		   int* nintci, int* nintcf, int* nextci,
@@ -31,28 +32,28 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
   
   // For allread  
   
-//       int *loc_global_index;
-//       int *rank = (int*) malloc(sizeof(int)*(*nintcf + 1));
-//       int nintci_loc, nintcf_loc, nextci_loc, nextcf_loc;
-//       int r;
-//       
-//       int numproc = 3;
-//     
-//       for (r=0; r<numproc; r++)
-//       {
-//         
-//         allread_calc_global_idx(&loc_global_index, &nintci_loc, &nintcf_loc, &nextci_loc,
-//     			    &nextcf_loc, part_type, read_type, numproc, r,
-//     			    *nintci, *nintcf, *nextci,
-//     			    *nextcf, *lcc, *elems, *points_count);
-//     
-//         for (i=nintci_loc; i <= nintcf_loc; i++) {
-// 	  rank[loc_global_index[i - nintci_loc]] = r;
-//         }
-//         
-//         free(loc_global_index); 
-//       }
-//   
+  //       int *loc_global_index;
+  //       int *rank = (int*) malloc(sizeof(int)*(*nintcf + 1));
+  //       int nintci_loc, nintcf_loc, nextci_loc, nextcf_loc;
+  //       int r;
+  //       
+  //       int numproc = 3;
+  //     
+  //       for (r=0; r<numproc; r++)
+  //       {
+  //         
+  //         allread_calc_global_idx(&loc_global_index, &nintci_loc, &nintcf_loc, &nextci_loc,
+  //     			    &nextcf_loc, part_type, read_type, numproc, r,
+  //     			    *nintci, *nintcf, *nextci,
+  //     			    *nextcf, *lcc, *elems, *points_count);
+  //     
+  //         for (i=nintci_loc; i <= nintcf_loc; i++) {
+  // 	  rank[loc_global_index[i - nintci_loc]] = r;
+  //         }
+  //         
+  //         free(loc_global_index); 
+  //       }
+  //   
   
   // For oneread
   
@@ -75,23 +76,44 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
     }
   }
   
-
+  
+//     for (r=0; r<numproc; r++)
+//   {
+//     free(loc_global_index[r]); 
+//   }
+//   free(loc_global_index); 
+//   free(nintcf_loc);
+//   free(nintci_loc);
+//   free(nextci_loc);
+//   free(nextcf_loc);
+  
+  
+  
+  //      vtk_write_unstr_grid_header("a", "b.vtk", *nintci, *nintcf, *points_count, *points, *elems);
+  //      vtk_append_integer("b.vtk", "rank", *nintci, *nintcf, rank);
+  
+  double *scalars = (double*) calloc(nextci_loc[2], sizeof(double));
+  
+  for (i=0; i<nextci_loc[2]; i++)
+  {
+    scalars[i] = 1.0;
+  }
+  
+  test_distribution(file_in, "bb.vtk", loc_global_index[2], nextci_loc[2], scalars);
+  free(scalars);
+  free(rank);
+  
+  
+  
     for (r=0; r<numproc; r++)
-    {
-     free(loc_global_index[r]); 
-    }
-    free(loc_global_index); 
+  {
+    free(loc_global_index[r]); 
+  }
+  free(loc_global_index); 
   free(nintcf_loc);
   free(nintci_loc);
   free(nextci_loc);
   free(nextcf_loc);
-  
-  
-  
-     vtk_write_unstr_grid_header("a", "b.vtk", *nintci, *nintcf, *points_count, *points, *elems);
-     vtk_append_integer("b.vtk", "rank", *nintci, *nintcf, rank);
-    
-    free(rank);
   
   // ====================== For testing purposes ======================
   
