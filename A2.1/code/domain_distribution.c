@@ -55,32 +55,42 @@ void compute_boundary_stop(int** boundary_direct_access, int *local_global_index
 }
 
 
+
+void determine_type(int *type, int *dual, char *part_type) {
+  
+  if(strcmp(part_type, "classic")==0){
+    *type = 0;
+    *dual = 0;
+  }
+  
+  if(strcmp(part_type, "dual")==0){
+    *type = 1;
+    *dual = 1;
+  }
+  
+  if(strcmp(part_type, "nodal")==0){
+    *type = 1;
+    *dual = 0;
+  }
+  
+}
+
+
 void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nintcf_loc, int *nextci_loc,
 			     int *nextcf_loc, char *part_type, char*read_type, int nprocs, int myrank,
 			     int nintci, int nintcf, int nextci,
-			     int nextcf, int** lcc, int* elems, int points_count) {
+			     int nextcf, int** lcc, int* elems, int points_count) 
+
+{
   
-  printf("ALLREAD!\n");
-  
+  // Assume 0 value of nintci
   *nintci_loc = 0;
   int i, j, NC;
   int type, dual;
   
-  if(strcmp(part_type, "classic")==0){
-    type = 0;
-    dual = 0;
-  }
+  determine_type(&type, &dual, part_type);
   
-  if(strcmp(part_type, "dual")==0){
-    type = 1;
-    dual = 1;
-  }
-  
-  if(strcmp(part_type, "nodal")==0){
-    type = 1;
-    dual = 0;
-  }
-  
+  // If the classic mode chosen
   if (type == 0) {
     int start_int, stop_int, quotient_int, remainder_int, num_terms_int;
     int start_ext, stop_ext, quotient_ext, remainder_ext, num_terms_ext;
@@ -119,9 +129,9 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     
   } 
   
+  // If the metis mode chosen
   else if (type == 1) {
     
-    printf("METIS!\n");
     idx_t options[METIS_NOPTIONS];
     //options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_VOL;
     
@@ -131,17 +141,16 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     
     ne = (nintcf - nintci + 1);//(nintcf - nintci + 2);
     nn = points_count; //8*(nintcf - nintci + 1); 
-  
+    
     idx_t *eind = (idx_t*) malloc( 8*ne*sizeof(idx_t) );
     idx_t *eptr = (idx_t*) malloc( (ne+1)*sizeof(idx_t) );
-
     
     for (NC=0; NC<ne+1; NC++) {
       
       eptr[NC] = 8*NC;
       
     }
-
+    
     for (i=0; i<8*ne; i++) {
       eind[i] = elems[i];
     }
@@ -151,16 +160,13 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     
     epart = (idx_t*) malloc( ne*sizeof(idx_t) );
     npart = (idx_t*) malloc( nn*sizeof(idx_t) );
-  
+    
     ncommon = 4;
     nparts = nprocs;
-
-printf("");
     
     if (dual == 1)
     {
       METIS_PartMeshDual(&ne, &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, &objval, epart, npart);
- printf("ok!!!!!!!\n");  
     }
     else if (dual == 0)
     {
@@ -168,11 +174,9 @@ printf("");
     }
     
     int el_count=0;
-
     
     for (NC=0; NC<ne; NC++) {
       
-      //  printf("\n%d\t%d", NC, epart[NC]);
       if (epart[NC] == myrank) {
 	el_count++;
       }
@@ -191,7 +195,7 @@ printf("");
     printf("Elcount: %d\n", el_count);
     *local_global_index = (int*)malloc( (el_count + num_terms_ext)*sizeof(int) );
     
-
+    
     *nextci_loc = el_count;
     *nextcf_loc = el_count + num_terms_ext - 1;
     
@@ -213,21 +217,186 @@ printf("");
     free(eptr);
     free(eind);
     
-    //free(local_global_index);
+    
+  }
+  
+}
+
+
+void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **nintcf_loc, int **nextci_loc,
+			     int **nextcf_loc, char *part_type, char*read_type, int nprocs,
+			     int nintci, int nintcf, int nextci,
+			     int nextcf, int** lcc, int* elems, int points_count) 
+{
+  
+  
+  int i, j, NC;
+  int type, dual;
+  int rank;
+  
+  *nintci_loc = (int*)malloc( nprocs*sizeof(int) );
+  *nintcf_loc = (int*)malloc( nprocs*sizeof(int) );
+  *nextci_loc = (int*)malloc( nprocs*sizeof(int) );
+  *nextcf_loc = (int*)malloc( nprocs*sizeof(int) );
+  
+  *local_global_index = (int**)malloc( nprocs*sizeof(int*) );
+  
+  determine_type(&type, &dual, part_type);
+  
+  // If the classic mode chosen
+  if (type == 0) {
+    int start_int, stop_int, quotient_int, remainder_int, num_terms_int;
+    int start_ext, stop_ext, quotient_ext, remainder_ext, num_terms_ext;
+    
+    
+    // Calculation of the indices of the int cells for each process
+    
+    num_terms_int = nintcf - nintci + 1;
+    
+    quotient_int  = num_terms_int  / nprocs;
+    remainder_int = num_terms_int  % nprocs;
+    
+    for (rank=0; rank<nprocs; rank++) {
+      
+      // Assume 0 value of nintci
+      (*nintci_loc)[rank] = 0;
+      
+      start_int = (rank + 0)*quotient_int  + MIN(rank , remainder_int );
+      stop_int = (rank + 1)*quotient_int  + MIN(rank+1, remainder_int );
+      
+      (*nintcf_loc)[rank] = stop_int - start_int - 1;
+      (*nextci_loc)[rank] = stop_int - start_int;
+      
+      
+      
+      // Calculation of the number of external cells belonging to a process
+      int *boundary_direct_access;
+      compute_boundary_start(&boundary_direct_access, &num_terms_ext, nextcf, nextci, (*nintci_loc)[rank], (*nintcf_loc)[rank], lcc);
+      
+      
+      (*nextcf_loc)[rank] = (*nextci_loc)[rank] + num_terms_ext - 1;
+      
+      (*local_global_index)[rank] = (int*)malloc( (num_terms_int + num_terms_ext)*sizeof(int) );
+      
+      
+      for (i=(*nintci_loc)[rank]; i <= (*nintcf_loc)[rank]; i++) {
+	(*local_global_index)[rank][i] = start_int + i;
+	
+      }
+      
+      compute_boundary_stop(&boundary_direct_access, (*local_global_index)[rank], nextcf, nextci, (*nextci_loc)[rank], (*nextcf_loc)[rank], lcc);
+    }
+    
+  } // If the metis mode chosen
+  else if (type == 1) {
+    
+    idx_t options[METIS_NOPTIONS];
+    //options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_VOL;
+    
+    METIS_SetDefaultOptions(options);
+    
+    idx_t ne, nn, ncommon, objval, nparts ;
+    
+    ne = (nintcf - nintci + 1);//(nintcf - nintci + 2);
+    nn = points_count; //8*(nintcf - nintci + 1); 
+    
+    idx_t *eind = (idx_t*) malloc( 8*ne*sizeof(idx_t) );
+    idx_t *eptr = (idx_t*) malloc( (ne+1)*sizeof(idx_t) );
+    
+    for (NC=0; NC<ne+1; NC++) {
+      
+      eptr[NC] = 8*NC;
+      
+    }
+    
+    for (i=0; i<8*ne; i++) {
+      eind[i] = elems[i];
+    }
+    
+    idx_t *epart;
+    idx_t *npart;
+    
+    epart = (idx_t*) malloc( ne*sizeof(idx_t) );
+    npart = (idx_t*) malloc( nn*sizeof(idx_t) );
+    
+    ncommon = 4;
+    nparts = nprocs;
+    
+    if (dual == 1)
+    {
+      METIS_PartMeshDual(&ne, &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, &objval, epart, npart);
+    }
+    else if (dual == 0)
+    {
+      METIS_PartMeshNodal(&ne, &nn, eptr, eind, NULL, NULL, &nparts, NULL, NULL, &objval, epart, npart);
+    }
+    
+    // TODO: Here the different code begins...
+    
+    int* el_count;
+    
+    el_count = (int*)calloc( nprocs, sizeof(int) );
+    
+    
+    
+    for (NC=0; NC<ne; NC++) {
+      
+      (el_count[epart[NC]])++;
+      
+    }
+    
+    for (rank=0; rank<nprocs; rank++) {
+      
+      (*nintcf_loc)[rank] = el_count[rank]-1;
+      (*nintci_loc)[rank] = 0;
+           // printf("Elcount: %d\n", el_count[rank]);
+    }
+    
+
+    
+    for (rank=0; rank<nprocs; rank++) {
+      int num_terms_ext;
+      
+      // Calculation of the number of external cells belonging to a process
+      int *boundary_direct_access;
+      compute_boundary_start(&boundary_direct_access, &num_terms_ext, nextcf, nextci, (*nintci_loc)[rank], (*nintcf_loc)[rank], lcc);
+      
+      printf("Elcount: %d\n", el_count[rank]);
+      (*local_global_index)[rank] = (int*)malloc( (el_count[rank] + num_terms_ext)*sizeof(int) );
+      
+      
+      (*nextci_loc)[rank] = el_count[rank];
+      (*nextcf_loc)[rank] = el_count[rank] + num_terms_ext - 1;
+      
+      
+      
+      
+      compute_boundary_stop(&boundary_direct_access, (*local_global_index)[rank], nextcf, nextci, (*nextci_loc)[rank], (*nextcf_loc)[rank], lcc);
+      
+    }
+    
+        int* i_loc = (int*)calloc( nprocs, sizeof(int) );
+    
+    for (NC=0; NC<ne; NC++) {
+      
+
+	(*local_global_index)[epart[NC]][i_loc[epart[NC]]] =  NC;
+	(i_loc[epart[NC]])++;
+ 
+    }
+    
+    free(i_loc);
+    
+    free(el_count);
+    
+    
+    free(epart);
+    free(npart);
+    free(eptr);
+    free(eind);
+    
     
   }
   
   
-  
-  //free(local_global_index); 
-			     }
-			     
-			     
-			     /*
-			      *			      n i*ntci_loc = malloc( nprocs*sizeof(int) );
-			      *			      nintcf_loc = malloc( nprocs*sizeof(int) );
-			      *			      nextci_loc = malloc( nprocs*sizeof(int) );
-			      *			      nextcf_loc = malloc( nprocs*sizeof(int) );
-			      */
-			     
-			     
+}

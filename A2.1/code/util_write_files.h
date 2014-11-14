@@ -35,7 +35,7 @@ int store_simulation_stats(char *in_file_name, char *out_file_name, int nintci, 
  */
 void vtk_write_unstr_grid_header(const char *experiment_name, const char *out_file_name,
                                  int start_index, int end_index, int points_count, int **points,
-                                 int *elems, int rank, int timestep);
+                                 int *elems);
 
 /**
  * Append the values of a double variable to a VTK file
