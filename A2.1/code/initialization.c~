@@ -68,11 +68,11 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
 int input_key, part_key, read_key;
 
 if(strcmp(read_type, "oneread") == 0){
-read_key = 1;
+input_key = 1;
 }
 
 if (strcmp(read_type, "allread") == 0){
-read_key = 2;
+input_key = 2;
 }
 
 
