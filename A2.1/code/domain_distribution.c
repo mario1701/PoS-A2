@@ -217,7 +217,7 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     free(eptr);
     free(eind);
     
-    
+    printf("Domain distribution finished successfully!\n");
   }
   
 }
