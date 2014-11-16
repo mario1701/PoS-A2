@@ -452,10 +452,6 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
 	  free(*bl);
 	  free(*bp);
 	  free(*su); 
-	  free(*var);
-	  free(*cgup);
-	  free(*oc);
-	  free(*cnorm);
 
 	  
 	 
@@ -514,12 +510,12 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
     printf("OK6\t%d!\n", myrank);
     // Visualisation - begin
     
-    double *ranks = (double*) calloc(num_internal_cells+1, sizeof(double));
+   // double *ranks = (double*) calloc((num_internal_cells+1),sizeof(double));
     
     printf("OK7%d \t num_internal_cells: %d!\n",num_internal_cells, myrank);
     for (i=0; i<num_internal_cells+1; i++)
     {
-      ranks[i] = 1.0;
+   //   ranks[i] = 1.0;
     }
           printf("Nextcf_loc = %d\tmyrank = %d!\n", Nextcf_loc, myrank);
     for (i=0; i< Nextcf_loc; i++)
@@ -528,16 +524,16 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
       printf("%d\tmyrank = %d!\n", i, myrank);
     }
     
-    write_vtk(file_in, "ranks", *local_global_index, num_internal_cells, ranks, part_type, myrank);
+   // write_vtk(file_in, "ranks", *local_global_index, num_internal_cells, ranks, part_type, myrank);
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
     
     printf("OK8\t%d!\n", myrank);
     
-    free(ranks);
+   // free(ranks);
     // Visualisation - end
     
-    
+   // MPI_Barrier(MPI_COMM_WORLD);
   }
   
   
