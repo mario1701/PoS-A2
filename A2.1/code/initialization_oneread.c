@@ -109,6 +109,7 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
     
     int ** local_global_index_array;
     int *nintci_loc_array, *nintcf_loc_array, *nextci_loc_array, *nextcf_loc_array, *length_loc_index_array;
+    int local_global_nintcf, local_global_points_count;
     
     int length_loc_index;
     
@@ -147,7 +148,7 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
       
       
       for (i=0; i<length_loc_index; i++) {
-	(*local_global_index)[i] = local_global_index_array[i];
+	(*local_global_index)[i] = local_global_index_array[0][i];
       }
       
       
@@ -158,21 +159,13 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
 	MPI_Send(&(nextci_loc_array[dest]), 1, MPI_INT, dest, 3, MPI_COMM_WORLD);
 	MPI_Send(&(nextcf_loc_array[dest]), 1, MPI_INT, dest, 4, MPI_COMM_WORLD);
 	MPI_Send(local_global_index_array[dest], length_loc_index_array[dest], MPI_INT, dest, 5, MPI_COMM_WORLD);
+	MPI_Send(nintcf, 1, MPI_INT, dest, 6, MPI_COMM_WORLD);
+	MPI_Send(points_count, 1, MPI_INT, dest, 7, MPI_COMM_WORLD);
+	
 	
       }
+      
     }
-    
-    // TODO: Free the memory!
-    for (i=0; i<nprocs; i++) {
-      free(local_global_index_array[i]);
-    }
-    free(local_global_index_array);
-    
-    free(length_loc_index_array);
-    free(nintci_loc_array);
-    free(nintcf_loc_array);
-    free(nextci_loc_array);
-    free(nextcf_loc_array);
     
     if (myrank>0){
       MPI_Recv(&length_loc_index,1,MPI_INT,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
@@ -185,19 +178,316 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
       MPI_Recv(&Nextci_loc,1,MPI_INT,0,3,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv(&Nextcf_loc,1,MPI_INT,0,4,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv((*local_global_index),length_loc_index,MPI_INT,0,5,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+      MPI_Recv(&local_global_nintcf, 1, MPI_INT, 0, 6, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+      MPI_Recv(&local_global_points_count, 1, MPI_INT, 0, 7, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       printf("Received!\t%d\n",Nintcf_loc);
       
     }
     
-    num_cells = Nextcf_loc - Nintci_loc +1;
-    num_internal_cells = Nintcf_loc - Nintci_loc +1;
+    // Data transfer
     
-    /************************ Array memory allocation *******************************/
+    if (myrank==0){
+      int dest;
+      for (dest = 1; dest<nprocs; dest++){
+	
+	num_cells = nextcf_loc_array[dest] - nintci_loc_array[dest] +1;
+	num_internal_cells = nintcf_loc_array[dest] - nintci_loc_array[dest] +1;
+	
+	memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
+	
+	for (i =nintci_loc_array[dest]; i <=nextcf_loc_array[dest]; i++){
+	  bs_local[i] = (*bs)[local_global_index_array[dest][i]];
+	  be_local[i] = (*be)[local_global_index_array[dest][i]];
+	  bn_local[i] = (*bn)[local_global_index_array[dest][i]];
+	  bw_local[i] = (*bw)[local_global_index_array[dest][i]];
+	  bh_local[i] = (*bh)[local_global_index_array[dest][i]];
+	  bl_local[i] = (*bl)[local_global_index_array[dest][i]];
+	  bp_local[i] = (*bp)[local_global_index_array[dest][i]];
+	  su_local[i] = (*su)[local_global_index_array[dest][i]];
+	  
+
+	  
+	}
+	
+	
+	MPI_Send(bs_local, num_cells, MPI_DOUBLE, dest, 0, MPI_COMM_WORLD);
+	MPI_Send(be_local, num_cells, MPI_DOUBLE, dest, 1, MPI_COMM_WORLD);
+	MPI_Send(bn_local, num_cells, MPI_DOUBLE, dest, 2, MPI_COMM_WORLD);
+	MPI_Send(bw_local, num_cells, MPI_DOUBLE, dest, 3, MPI_COMM_WORLD);
+	MPI_Send(bh_local, num_cells, MPI_DOUBLE, dest, 4, MPI_COMM_WORLD);
+	MPI_Send(bl_local, num_cells, MPI_DOUBLE, dest, 5, MPI_COMM_WORLD);
+	MPI_Send(bp_local, num_cells, MPI_DOUBLE, dest, 6, MPI_COMM_WORLD);
+	MPI_Send(su_local, num_cells, MPI_DOUBLE, dest, 7, MPI_COMM_WORLD);
+	
+		  for (i =nintci_loc_array[dest]; i <=nintcf_loc_array[dest]; i++){
+	    for (j = 0; j<6; j++){
+	      LCC_local[i][j] = (*lcc)[local_global_index_array[dest][i]][j];
+	    }
+	  }
+	
+	//TODO: Very stupid way to do it, change it!
+	for (i =nintci_loc_array[dest]; i <=nintcf_loc_array[dest]; i++){
+	  MPI_Send(LCC_local[i], 6, MPI_INT, dest, i, MPI_COMM_WORLD);
+	}
+	
+	printf("Data send from proc 0!\t%d\n",Nintcf_loc);
+	
+
+	for (i=0; i<num_internal_cells; i++) {
+	  free(LCC_local[i]);
+	}
+	
+	free(LCC_local);
+	free(bs_local);
+	free(be_local);
+	free(bn_local); 
+	free(bw_local);
+	free(bh_local);
+	free(bl_local);
+	free(bp_local);
+	free(su_local); 
+	free(*var);
+	free(*cgup);
+	free(*oc);
+	free(*cnorm);
+      }
+      
+      
+//       // Free the memory!
+//       for (i=0; i<nprocs; i++) {
+// 	free(local_global_index_array[i]);
+//       }
+//       free(local_global_index_array);
+//       
+//       free(length_loc_index_array);
+//       free(nintci_loc_array);
+//       free(nintcf_loc_array);
+//       free(nextci_loc_array);
+//       free(nextcf_loc_array);
+//       
+//            //TODO: For the 0th process - this is wrong approach - We need to save the local data to the 0th process
+//       
+//             num_cells = Nextcf_loc - Nintci_loc +1;
+//             num_internal_cells = Nintcf_loc  - Nintci_loc +1;
+//             memoryallocation(lcc, bs, be, bn, bw, bh, bl, bp, su, num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
+      
+      // TODO: For the 0th process - I was trying to do it this way....
+      
+      
+//       num_cells = Nextcf_loc - Nintci_loc +1;
+//       num_internal_cells = Nintcf_loc  - Nintci_loc +1;
+//       
+//       
+//       dest = 0;
+//       
+//       memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
+//       
+//       for (i =nintci_loc_array[dest]; i <=nextcf_loc_array[dest]; i++){
+// 	bs_local[i] = (*bs)[local_global_index_array[dest][i]];
+// 	be_local[i] = (*be)[local_global_index_array[dest][i]];
+// 	bn_local[i] = (*bn)[local_global_index_array[dest][i]];
+// 	bw_local[i] = (*bw)[local_global_index_array[dest][i]];
+// 	bh_local[i] = (*bh)[local_global_index_array[dest][i]];
+// 	bl_local[i] = (*bl)[local_global_index_array[dest][i]];
+// 	bp_local[i] = (*bp)[local_global_index_array[dest][i]];
+// 	su_local[i] = (*su)[local_global_index_array[dest][i]];
+// 	
+// 	for (i =nintci_loc_array[dest]; i <=nintcf_loc_array[dest]; i++){
+// 	  for (j = 0; j<6; j++){
+// 	    LCC_local[i][j] = (*lcc)[local_global_index_array[dest][i]][j];
+// 	  }
+// 	}
+// 	
+//       }
+//       
+//       	  for (i=0; i<num_internal_cells; i++) {
+// 	    free((*lcc)[i]);
+// 	  }
+// 	  
+// 	  free(*lcc);
+// 	  free(*bs);
+// 	  free(*be);
+// 	  free(*bn); 
+// 	  free(*bw);
+// 	  free(*bh);
+// 	  free(*bl);
+// 	  free(*bp);
+// 	  free(*su); 
+// 	  free(*var);
+// 	  free(*cgup);
+// 	  free(*oc);
+// 	  free(*cnorm);
+// //       
+// //       memoryallocation(lcc, bs, be, bn, bw, bh, bl, bp, su, num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
+//       *lcc = LCC_local;
+//       *bs = bs_local;
+//       *be = be_local;
+//       *bn = bn_local;
+//       *bw = bw_local;
+//       *bh = bh_local;
+//       *bl = bl_local;
+//       *bp = bp_local;
+//       *su = su_local;
+//       
+//       
+//       
+//       // Freeing memory
+//       
+//       for (i=0; i<num_internal_cells; i++) {
+// 	free(LCC_local[i]);
+//       }
+//       
+//       free(LCC_local);
+//       free(bs_local);
+//       free(be_local);
+//       free(bn_local); 
+//       free(bw_local);
+//       free(bh_local);
+//       free(bl_local);
+//       free(bp_local);
+//       free(su_local); 
+//       free(*var);
+//       free(*cgup);
+//       free(*oc);
+//       free(*cnorm);
+//       
+//       
+//             // Free the memory!
+//       for (i=0; i<nprocs; i++) {
+// 	free(local_global_index_array[i]);
+//       }
+//       free(local_global_index_array);
+//       
+//       free(length_loc_index_array);
+//       free(nintci_loc_array);
+//       free(nintcf_loc_array);
+//       free(nextci_loc_array);
+//       free(nextcf_loc_array);
+      
+    }
     
-    memoryallocation(lcc, bs, be, bn, bw, bh, bl, bp, su, /**points_count, &points_local, &elems_local,*/ num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
     
-    //TODO: Sending lcc!
     
+    // Receive the data
+    
+    if (myrank>0){
+      printf("Receiving strated from proc 0!\n");
+      
+      
+      num_cells = Nextcf_loc - Nintci_loc +1;
+      num_internal_cells = Nintcf_loc  - Nintci_loc +1;
+      
+      memoryallocation(lcc, bs, be, bn, bw, bh, bl, bp, su, num_internal_cells, num_cells, &local_global_nintcf, local_global_points_count, &*var, &*cgup, &*oc, &*cnorm);
+      
+      
+      
+      MPI_Recv(*bs, num_cells, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(*be, num_cells, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(*bn, num_cells, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(*bw, num_cells, MPI_DOUBLE, 0, 3, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(*bh, num_cells, MPI_DOUBLE, 0, 4, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(*bl, num_cells, MPI_DOUBLE, 0, 5, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(*bp, num_cells, MPI_DOUBLE, 0, 6, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(*su, num_cells, MPI_DOUBLE, 0, 7, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      
+      //TODO: Very stupid way to do it, change it!
+      for (i =Nintci_loc; i <=Nintcf_loc; i++){
+	MPI_Recv((*lcc)[i], 6, MPI_INT, 0, i, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      }
+      
+      
+      
+      printf("Received data!\n");
+      
+      
+    }
+    
+   
+   if (myrank==0){
+     
+           
+      int dest = 0;
+     printf("OK1!\n");
+     num_cells = Nextcf_loc - Nintci_loc +1;
+      num_internal_cells = Nintcf_loc  - Nintci_loc +1;
+      printf("Cells: %d\t%d\n", num_cells, num_internal_cells);
+            printf("Cells: %d\t%d\n", nintci_loc_array[dest], nextcf_loc_array[dest]);
+      
+
+      
+      memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
+           printf("OK2!\n");
+      for (i =nintci_loc_array[dest]; i <=nextcf_loc_array[dest]; i++){
+
+ 	bs_local[i] = (*bs)[local_global_index_array[dest][i]];
+ 	be_local[i] = (*be)[local_global_index_array[dest][i]];
+ 	bn_local[i] = (*bn)[local_global_index_array[dest][i]];
+ 	bw_local[i] = (*bw)[local_global_index_array[dest][i]];
+ 	bh_local[i] = (*bh)[local_global_index_array[dest][i]];
+ 	bl_local[i] = (*bl)[local_global_index_array[dest][i]];
+ 	bp_local[i] = (*bp)[local_global_index_array[dest][i]];
+ 	su_local[i] = (*su)[local_global_index_array[dest][i]];
+	//printf("%d\t%d\n", i, bs_local[i]); 
+      }
+ 	for (i =nintci_loc_array[dest]; i <=nintcf_loc_array[dest]; i++){
+ 	  for (j = 0; j<6; j++){
+ 	    LCC_local[i][j] = (*lcc)[local_global_index_array[dest][i]][j];
+
+   }
+ 	  	    //	printf("%d\t%d\n", i, (*lcc)[local_global_index_array[dest][i]][5]);//LCC_local[i][j]); 
+ 	}
+	
+      
+            printf("OK3!\n");
+      	  for (i=0; i<num_internal_cells; i++) {
+	    free((*lcc)[i]);
+	  }
+	  
+	  free(*lcc);
+	  free(*bs);
+	  free(*be);
+	  free(*bn); 
+	  free(*bw);
+	  free(*bh);
+	  free(*bl);
+	  free(*bp);
+	  free(*su); 
+	  free(*var);
+	  free(*cgup);
+	  free(*oc);
+	  free(*cnorm);
+
+	  
+	 
+	             printf("OK4!\n");
+		     
+      *lcc = LCC_local;
+      *bs = bs_local;
+      *be = be_local;
+      *bn = bn_local;
+      *bw = bw_local;
+      *bh = bh_local;
+      *bl = bl_local;
+      *bp = bp_local;
+      *su = su_local;
+      
+
+            // Free the memory!
+      for (i=0; i<nprocs; i++) {
+	free(local_global_index_array[i]);
+      }
+      free(local_global_index_array);
+      
+      free(length_loc_index_array);
+      free(nintci_loc_array);
+      free(nintcf_loc_array);
+      free(nextci_loc_array);
+      free(nextcf_loc_array);
+      
+   }
+    
+    
+               printf("OK5\t%d!\n", myrank);
     // initialize the arrays
     for ( i = 0; i <= 10; i++ ) {
       (*cnorm)[i] = 1.0;
@@ -221,19 +511,28 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
       (*bh)[i] = 0.0;
       (*bl)[i] = 0.0;
     }
-    
+    printf("OK6\t%d!\n", myrank);
     // Visualisation - begin
     
     double *ranks = (double*) calloc(num_internal_cells+1, sizeof(double));
     
+    printf("OK7%d \t num_internal_cells: %d!\n",num_internal_cells, myrank);
     for (i=0; i<num_internal_cells+1; i++)
     {
       ranks[i] = 1.0;
+    }
+          printf("Nextcf_loc = %d\tmyrank = %d!\n", Nextcf_loc, myrank);
+    for (i=0; i< Nextcf_loc; i++)
+    {
+    //printf("i = %d\tlocal_global_index = %d\tmyrank = %d!\n", i, (*local_global_index)[i], myrank);
+      printf("%d\tmyrank = %d!\n", i, myrank);
     }
     
     write_vtk(file_in, "ranks", *local_global_index, num_internal_cells, ranks, part_type, myrank);
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
+    
+    printf("OK8\t%d!\n", myrank);
     
     free(ranks);
     // Visualisation - end
@@ -304,78 +603,80 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
     
   }/******  1  ********/
   
-  /*exchange the memory name for local and global and free the global one*/
-  int **LCC_local_temp=NULL; 
-  double *bs_local_temp=NULL;
-  double *be_local_temp = NULL;
-  double *bn_local_temp = NULL;
-  double *bw_local_temp = NULL; 
-  double *bh_local_temp = NULL;
-  double *bl_local_temp = NULL;
-  double *bp_local_temp = NULL; 
-  double *su_local_temp = NULL;
-  
-  
-  LCC_local_temp = LCC_local; LCC_local = *lcc;  *lcc = LCC_local_temp;
-  bs_local_temp = bs_local; bs_local = *bs;  *bs = bs_local_temp;
-  be_local_temp = be_local; be_local = *be;  *be = be_local_temp;
-  bn_local_temp = bn_local; bn_local = *bn;  *bn = bn_local_temp;
-  bw_local_temp = bw_local; bw_local = *bw;  *bw = bw_local_temp;
-  bh_local_temp = bh_local; bh_local = *bh;  *bh = bh_local_temp;
-  bl_local_temp = bl_local; bl_local = *bl;  *bl = bl_local_temp;
-  bp_local_temp = bp_local; bp_local = *bp;  *bp = bp_local_temp;
-  su_local_temp = su_local; su_local = *su;  *su = su_local_temp;
-  
-  
-  
-  // Visualisation - begin
-  
-  double *ranks = (double*) calloc(num_internal_cells+1, sizeof(double));
-  
-  for (i=0; i<num_internal_cells+1; i++)
-  {
-    ranks[i] = 1.0;
+  if(strcmp(read_type, "allread") == 0){
+    
+    /*exchange the memory name for local and global and free the global one*/
+    int **LCC_local_temp=NULL; 
+    double *bs_local_temp=NULL;
+    double *be_local_temp = NULL;
+    double *bn_local_temp = NULL;
+    double *bw_local_temp = NULL; 
+    double *bh_local_temp = NULL;
+    double *bl_local_temp = NULL;
+    double *bp_local_temp = NULL; 
+    double *su_local_temp = NULL;
+    
+    
+    LCC_local_temp = LCC_local; LCC_local = *lcc;  *lcc = LCC_local_temp;
+    bs_local_temp = bs_local; bs_local = *bs;  *bs = bs_local_temp;
+    be_local_temp = be_local; be_local = *be;  *be = be_local_temp;
+    bn_local_temp = bn_local; bn_local = *bn;  *bn = bn_local_temp;
+    bw_local_temp = bw_local; bw_local = *bw;  *bw = bw_local_temp;
+    bh_local_temp = bh_local; bh_local = *bh;  *bh = bh_local_temp;
+    bl_local_temp = bl_local; bl_local = *bl;  *bl = bl_local_temp;
+    bp_local_temp = bp_local; bp_local = *bp;  *bp = bp_local_temp;
+    su_local_temp = su_local; su_local = *su;  *su = su_local_temp;
+    
+    
+    
+    // Visualisation - begin
+    
+    double *ranks = (double*) calloc(num_internal_cells+1, sizeof(double));
+    
+    for (i=0; i<num_internal_cells+1; i++)
+    {
+      ranks[i] = 1.0;
+    }
+    
+    write_vtk(file_in, "ranks", *local_global_index, num_internal_cells, ranks, part_type, myrank);
+    write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
+    write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
+    
+    free(ranks);
+    // Visualisation - end
+    
+    
+    
+    /*if(0 == myrank){
+     * printf("LCC_local[17][2] = %d",(LCC_local)[17][2] );
+     * 
+  }*/
+    free(su_local);
+    free(bp_local);
+    free(bh_local);
+    free(bl_local);
+    free(bw_local);
+    free(bn_local);
+    free(be_local);
+    free(bs_local);
+    
+    
+    for ( i = 0; i < (*nintcf + 1); i++ ) {
+      free(LCC_local[i]);
+    }
+    free(LCC_local);
+    
+    //printf("OK for free no longer used global data lcc from processor %d !\n", myrank ); 
+    /* free(su_local_temp);
+     *    free(bp_local_temp);
+     *    free(bh_local_temp);
+     *    free(bl_local_temp);
+     *    free(bw_local_temp);
+     *    free(bn_local_temp);
+     *    free(be_local_temp);
+     *    free(bs_local_temp);*/
+    
   }
-  
-  write_vtk(file_in, "ranks", *local_global_index, num_internal_cells, ranks, part_type, myrank);
-  write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
-  write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
-  
-  free(ranks);
-  // Visualisation - end
-  
-  
-  
-  /*if(0 == myrank){
-   * printf("LCC_local[17][2] = %d",(LCC_local)[17][2] );
-   * 
-}*/
-  free(su_local);
-  free(bp_local);
-  free(bh_local);
-  free(bl_local);
-  free(bw_local);
-  free(bn_local);
-  free(be_local);
-  free(bs_local);
-  
-  
-  for ( i = 0; i < (*nintcf + 1); i++ ) {
-    free(LCC_local[i]);
-  }
-  free(LCC_local);
-  
-  //printf("OK for free no longer used global data lcc from processor %d !\n", myrank ); 
-  /* free(su_local_temp);
-   *    free(bp_local_temp);
-   *    free(bh_local_temp);
-   *    free(bl_local_temp);
-   *    free(bw_local_temp);
-   *    free(bn_local_temp);
-   *    free(be_local_temp);
-   *    free(bs_local_temp);*/
-  
-  
   
   /*return back element information also to gloabl data */
   
