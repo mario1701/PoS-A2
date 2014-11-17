@@ -6,7 +6,6 @@
  */
 
 #include <stdio.h>
-#include "util_read_files.h"
 
 int test_distribution(char *file_in, char *file_vtk_out, int *local_global_index,
                       int local_num_elems, double *scalars) {

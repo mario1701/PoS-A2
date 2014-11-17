@@ -45,7 +45,7 @@ void compute_boundary_stop(int** boundary_direct_access, int *local_global_index
   for (i=nextci; i<=nextcf; i++) {
     if ( (*boundary_direct_access)[i - nextci] > 0) {
       local_global_index[nextci_loc + j] = i;
-      //printf("%d\t%d\n",nextci_loc + j, local_global_index[nextci_loc + j]);
+
       j++;
     }
   }
@@ -192,7 +192,7 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     int *boundary_direct_access;
     compute_boundary_start(&boundary_direct_access, &num_terms_ext, nextcf, nextci, *nintci_loc, *nintcf_loc, lcc);
     
-    printf("Elcount: %d\n", el_count);
+
     *local_global_index = (int*)malloc( (el_count + num_terms_ext)*sizeof(int) );
     
     
@@ -217,7 +217,7 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     free(eptr);
     free(eind);
     
-    printf("Domain distribution finished successfully!\n");
+
   }
   
 }
@@ -349,7 +349,7 @@ void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **
       
       (*nintcf_loc)[rank] = el_count[rank]-1;
       (*nintci_loc)[rank] = 0;
-           // printf("Elcount: %d\n", el_count[rank]);
+
     }
     
 
@@ -361,7 +361,7 @@ void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **
       int *boundary_direct_access;
       compute_boundary_start(&boundary_direct_access, &num_terms_ext, nextcf, nextci, (*nintci_loc)[rank], (*nintcf_loc)[rank], lcc);
       
-      printf("Elcount: %d\n", el_count[rank]);
+
       (*local_global_index)[rank] = (int*)malloc( (el_count[rank] + num_terms_ext)*sizeof(int) );
       
       

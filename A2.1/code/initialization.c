@@ -5,6 +5,8 @@
  * @author V. Petkov, A. Berariu
  */
 
+//#define PAPI
+
 #include <stdlib.h>
 #include <mpi.h>
 #include <stdio.h>
@@ -12,6 +14,9 @@
 #include <string.h>
 #include "initialization.h"
 
+#ifdef PAPI
+#include <papi.h>
+#endif
 
 void write_vtk(char *file_in, char *scalars_name, int *local_global_index, int num_internal_cells, double *scalars, char *part_type, int myrank) 
 {
@@ -49,6 +54,66 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
 		   double** cnorm, int** local_global_index) 
 {
   /********** START INITIALIZATION **********/
+  
+  #ifdef PAPI
+  /*PAPI initialization*/
+
+  float rtime, ptime, mflops;
+  long long flpops;
+    
+	void handle_error (int retval)
+		{
+		     printf("PAPI error %d: %s\n", retval, PAPI_strerror(retval));
+		  exit(1);
+		}  
+    
+    if(PAPI_flops( &rtime, &ptime, &flpops,  &mflops ) != PAPI_OK) handle_error(1);
+    
+    /*decide key type*/
+int input_key, part_key, read_key;
+
+if(strcmp(read_type, "oneread") == 0){
+read_key = 1;
+}
+
+if (strcmp(read_type, "allread") == 0){
+read_key = 2;
+}
+
+
+if(strcmp(part_type, "classic") == 0){
+part_key = 1;
+}
+
+if(strcmp(part_type, "dual") == 0){
+part_key = 2;
+}
+
+if(strcmp(part_type, "nodal") == 0){
+part_key = 3;
+}
+
+if((strcmp(file_in, "tjunc.geo.bin") ==0) ||(strcmp(file_in, "tjunc.geo.dat") ==0)  ){
+input_key = 1;
+}
+
+
+if((strcmp(file_in, "drall.geo.bin") ==0) ||(strcmp(file_in, "drall.geo.dat") ==0)  ){
+input_key = 2;
+}
+
+
+if((strcmp(file_in, "pent.geo.bin") ==0) ||(strcmp(file_in, "pent.geo.dat") ==0)  ){
+input_key = 3;
+}
+
+
+if((strcmp(file_in, "cojack.geo.bin") ==0) ||(strcmp(file_in, "cojack.geo.dat") ==0)  ){
+input_key = 4;
+}
+
+    #endif
+  
   int i = 0;
   int j = 0;
   
@@ -57,12 +122,12 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
   /*for oneread only processor 0 reads the data*/
   if (strcmp(read_type, "oneread") == 0 ) {
     if(0 == myrank){
-      printf("Init!\n");
+
       int f_status = read_binary_geo(file_in, &*nintci, &*nintcf, &*nextci, &*nextcf, &*lcc, &*bs,
 				     &*be, &*bn, &*bw, &*bl, &*bh, &*bp, &*su, &*points_count,
 				     &*points, &*elems);
       if ( f_status != 0 ) return f_status;
-      printf("After read!\n");
+
     }                               
   }
   /*for allread all processors read the data*/
@@ -76,7 +141,6 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
   /************************data distribution*************************/
   
   
-  
   /*local property*/
   int num_cells;
   int num_internal_cells;
@@ -88,7 +152,7 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
   double *bs_local, *be_local, *bn_local, *bw_local, *bh_local, *bl_local;
   double *bp_local; 
   double *su_local; 
-  
+  int local_global_points_count= *points_count;
   
   
   /*int length_loc_index;*/
@@ -109,7 +173,7 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
     
     int ** local_global_index_array;
     int *nintci_loc_array, *nintcf_loc_array, *nextci_loc_array, *nextcf_loc_array, *length_loc_index_array;
-    int local_global_nintcf, local_global_points_count;
+    int local_global_nintcf;
     
     int length_loc_index;
     
@@ -121,7 +185,7 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
 			      *nintci, *nintcf, *nextci,
 			      *nextcf, *lcc, *elems, *points_count);
       
-      printf("After oneread!\n");
+
       
       int dest;
       
@@ -177,7 +241,7 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
       MPI_Recv((*local_global_index),length_loc_index,MPI_INT,0,5,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv(&local_global_nintcf, 1, MPI_INT, 0, 6, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv(&local_global_points_count, 1, MPI_INT, 0, 7, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-      printf("Received!\t%d\n",Nintcf_loc);
+
       
     }
     
@@ -222,14 +286,11 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
 	  }
 	}
 	
-	printf("Before send lcc! nintcf_loc_array: %d\n", nintcf_loc_array[dest]);
-	
-	//TODO: Very stupid way to do it, change it!
+
 	for (i =nintci_loc_array[dest]; i <=nintcf_loc_array[dest]; i++){
 	  MPI_Send(LCC_local[i], 6, MPI_INT, dest, i, MPI_COMM_WORLD);
 	}
 	
-	printf("Data send from proc 0!\t%d\n",Nintcf_loc);
 	
 	
 	for (i=0; i<num_internal_cells; i++) {
@@ -261,14 +322,12 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
     // Receive the data
     
     if (myrank>0){
-      printf("Receiving strated from proc 0 by proc: %d!\n", myrank);
-      
-      
+
+            
       num_cells = Nextcf_loc - Nintci_loc +1;
       num_internal_cells = Nintcf_loc  - Nintci_loc +1;
       
       memoryallocation(lcc, bs, be, bn, bw, bh, bl, bp, su, num_internal_cells, num_cells, &local_global_nintcf, local_global_points_count, &*var, &*cgup, &*oc, &*cnorm);
-       printf("After memalloc by proc: %d num_internal_cells: %d num_cells %d!\n", myrank, num_internal_cells, num_cells);
       
       
       MPI_Recv(*bs, num_cells, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -280,37 +339,33 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
       MPI_Recv(*bp, num_cells, MPI_DOUBLE, 0, 6, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       MPI_Recv(*su, num_cells, MPI_DOUBLE, 0, 7, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       
-      printf("Before lcc receiving, rank: %d nintcf_loc_array[dest]: %d!\n", myrank, Nintcf_loc);
 
-      //TODO: Very stupid way to do it, change it!
       for (i =Nintci_loc; i <=Nintcf_loc; i++){
 	MPI_Recv((*lcc)[i], 6, MPI_INT, 0, i, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	printf("%d\t%d\n", i, myrank);
       }
       
       
-      printf("Received data!\n");
       
       
     }
     
-    MPI_Barrier(MPI_COMM_WORLD);
+  //  MPI_Barrier(MPI_COMM_WORLD);
     
     
     if (myrank==0){
       
       
       int dest = 0;
-      printf("OK1!\n");
+
       num_cells = Nextcf_loc - Nintci_loc +1;
       num_internal_cells = Nintcf_loc  - Nintci_loc +1;
-      printf("Cells: %d\t%d\n", num_cells, num_internal_cells);
-      printf("Cells: %d\t%d\n", nintci_loc_array[dest], nextcf_loc_array[dest]);
+
+
       
       
       
       memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
-      printf("OK2!\n");
+
       for (i =nintci_loc_array[dest]; i <=nextcf_loc_array[dest]; i++){
 	
 	bs_local[i] = (*bs)[local_global_index_array[dest][i]];
@@ -321,18 +376,18 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
 	bl_local[i] = (*bl)[local_global_index_array[dest][i]];
 	bp_local[i] = (*bp)[local_global_index_array[dest][i]];
 	su_local[i] = (*su)[local_global_index_array[dest][i]];
-	//printf("%d\t%d\n", i, bs_local[i]); 
+
       }
       for (i =nintci_loc_array[dest]; i <=nintcf_loc_array[dest]; i++){
 	for (j = 0; j<6; j++){
 	  LCC_local[i][j] = (*lcc)[local_global_index_array[dest][i]][j];
 	  
 	}
-	//	printf("%d\t%d\n", i, (*lcc)[local_global_index_array[dest][i]][5]);//LCC_local[i][j]); 
+
       }
       
       
-      printf("OK3!\n");
+
       for (i=0; i<num_internal_cells; i++) {
 	free((*lcc)[i]);
       }
@@ -348,8 +403,7 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
       free(*su); 
       
       
-      
-      printf("OK4!\n");
+
       
       *lcc = LCC_local;
       *bs = bs_local;
@@ -376,8 +430,7 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
       
     }
     
-    
-    printf("OK5\t%d!\n", myrank);
+
     // initialize the arrays
     for ( i = 0; i <= 10; i++ ) {
       (*cnorm)[i] = 1.0;
@@ -401,33 +454,32 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
       (*bh)[i] = 0.0;
       (*bl)[i] = 0.0;
     }
-    printf("OK6\t%d!\n", myrank);
+    
+    
+    #ifdef PAPI
+    
+    /*PAPI test ended*/  
+if(PAPI_flops( &rtime, &ptime, &flpops, &mflops ) != PAPI_OK) handle_error(1);
+
+/*output the PAPI result*/
+  write_pstats_exectime(input_key, part_key, read_key, myrank, ptime);
+write_pstats_partition(input_key, part_key, myrank, num_internal_cells, (Nextcf_loc - Nextci_loc +1) );
+
+#endif
+
+    
     // Visualisation - begin
+
     
-    // double *ranks = (double*) calloc((num_internal_cells+1),sizeof(double));
-    
-    printf("OK7%d \t num_internal_cells: %d!\n",num_internal_cells, myrank);
-    for (i=0; i<num_internal_cells+1; i++)
-    {
-      //   ranks[i] = 1.0;
-    }
-    printf("Nextcf_loc = %d\tmyrank = %d!\n", Nextcf_loc, myrank);
-    for (i=0; i< Nextcf_loc; i++)
-    {
-      //printf("i = %d\tlocal_global_index = %d\tmyrank = %d!\n", i, (*local_global_index)[i], myrank);
-      // printf("%d\tmyrank = %d!\n", i, myrank);
-    }
-    
-    // write_vtk(file_in, "ranks", *local_global_index, num_internal_cells, ranks, part_type, myrank);
+
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
     
-    printf("OK8\t%d!\n", myrank);
-    
-    // free(ranks);
+
+
     // Visualisation - end
     
-    MPI_Barrier(MPI_COMM_WORLD);
+ //   MPI_Barrier(MPI_COMM_WORLD);
   }
   
   
@@ -444,7 +496,6 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
     memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, /**points_count, &points_local, &elems_local,*/ num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
     
     
-    printf("the inside value for nintcf from processor %d is: %d!" ,myrank, num_internal_cells);  
     
     /*****************   Read Data   ***************/
     /*read LCC for LCC_local*/
@@ -518,6 +569,17 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
     su_local_temp = su_local; su_local = *su;  *su = su_local_temp;
     
     
+#ifdef PAPI
+    
+    /*PAPI test ended*/  
+if(PAPI_flops( &rtime, &ptime, &flpops, &mflops ) != PAPI_OK) handle_error(1);
+
+/*output the PAPI result*/
+  write_pstats_exectime(input_key, part_key, read_key, myrank, ptime);
+write_pstats_partition(input_key, part_key, myrank, num_internal_cells, (Nextcf_loc - Nextci_loc +1) );
+
+#endif
+    
     
     // Visualisation - begin
     
@@ -537,10 +599,7 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
     
     
     
-    /*if(0 == myrank){
-     * printf("LCC_local[17][2] = %d",(LCC_local)[17][2] );
-     * 
-  }*/
+ 
     free(su_local);
     free(bp_local);
     free(bh_local);
@@ -556,26 +615,35 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
     }
     free(LCC_local);
     
-    //printf("OK for free no longer used global data lcc from processor %d !\n", myrank ); 
-    /* free(su_local_temp);
-     *    free(bp_local_temp);
-     *    free(bh_local_temp);
-     *    free(bl_local_temp);
-     *    free(bw_local_temp);
-     *    free(bn_local_temp);
-     *    free(be_local_temp);
-     *    free(bs_local_temp);*/
+
     
   }
   
   /*return back element information also to gloabl data */
   
+    if ( (*elems = (int*) malloc((*nintcf + 1) * 8 * sizeof(int))) == NULL ) {
+	fprintf(stderr, "malloc failed to allocate elems");
+	return -1;
+    }
+    
+    if ( (*points = (int **) calloc(local_global_points_count, sizeof(int*))) == NULL ) {
+  fprintf(stderr, "malloc() POINTS 1st dim. failed\n");
+  return -1;
+}
+
+for ( i = 0; i < local_global_points_count; i++ ) {
+  if ( ((*points)[i] = (int *) calloc(3, sizeof(int))) == NULL ) {
+    fprintf(stderr, "malloc() POINTS 2nd dim. failed\n");
+    return -1;
+}
+} 
+  *points_count = local_global_points_count;
+  
   *nintci = Nintci_loc;
   *nintcf = Nintcf_loc;
   *nextci = Nextci_loc;
   *nextcf = Nextcf_loc;
-  
-  
+
   
   
   return 0;
@@ -638,25 +706,7 @@ int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, dou
     return -1;
   }
   
-  /*
-   *    
-   *    if ( (*elems_local = (int*) malloc((*nintcf + 1) * 8 * sizeof(int))) == NULL ) {
-   *        fprintf(stderr, "malloc failed to allocate elems");
-   *        return -1;
-}
 
-
-if ( (*points_local = (int **) calloc(points_count, sizeof(int*))) == NULL ) {
-  fprintf(stderr, "malloc() POINTS 1st dim. failed\n");
-  return -1;
-}
-
-for ( i = 0; i < points_count_local; i++ ) {
-  if ( (*points_local[i] = (int *) calloc(3, sizeof(int))) == NULL ) {
-    fprintf(stderr, "malloc() POINTS 2nd dim. failed\n");
-    return -1;
-}
-} */
   
   /*allocate additional vectors for computation*/
   *var = (double*) calloc(sizeof(double), (num_cells));
