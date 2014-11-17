@@ -5,6 +5,8 @@
  * @author V. Petkov
  */
 
+#include <malloc.h>
+
 #ifndef INITIALIZATION_H_
 #define INITIALIZATION_H_
 
