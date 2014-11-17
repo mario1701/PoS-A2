@@ -13,6 +13,7 @@
 #include "util_read_files.h"
 #include <string.h>
 #include "initialization.h"
+#include <malloc.h>
 
 #ifdef PAPI
 #include <papi.h>
@@ -153,6 +154,7 @@ input_key = 4;
   double *bp_local; 
   double *su_local; 
   int local_global_points_count= *points_count;
+
   
   
   /*int length_loc_index;*/
@@ -349,7 +351,7 @@ input_key = 4;
       
     }
     
-  //  MPI_Barrier(MPI_COMM_WORLD);
+   // MPI_Barrier(MPI_COMM_WORLD);
     
     
     if (myrank==0){
@@ -478,6 +480,8 @@ write_pstats_partition(input_key, part_key, myrank, num_internal_cells, (Nextcf_
 
 
     // Visualisation - end
+    
+
     
  //   MPI_Barrier(MPI_COMM_WORLD);
   }

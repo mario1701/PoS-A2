@@ -6,6 +6,7 @@
  */
 
 #include <stdio.h>
+#include <malloc.h>
 
 int test_distribution(char *file_in, char *file_vtk_out, int *local_global_index,
                       int local_num_elems, double *scalars) {

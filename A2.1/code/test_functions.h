@@ -5,6 +5,7 @@
  * @author V. Petkov, A. Berariu
  */
 
+#include <malloc.h>
 
 #ifndef TEST_FUNCTIONS_H_
 #define TEST_FUNCTIONS_H_
