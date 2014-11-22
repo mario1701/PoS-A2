@@ -77,35 +77,38 @@ void determine_type(int *type, int *dual, char *part_type) {
   
 }
 
-void METIS_Partitioning(int **epart, int nprocs, int *elems){
+// Initialize METIS and devide the domain
+void METIS_Partitioning(idx_t **epart, idx_t *ne, int nprocs, int *elems, int nintci, int nintcf, int points_count, int dual){
  
     idx_t options[METIS_NOPTIONS];
     //options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_VOL;
     
     METIS_SetDefaultOptions(options);
     
-    idx_t ne, nn, ncommon, objval, nparts ;
+    int NC, i;
     
-    ne = (nintcf - nintci + 1);
+    idx_t nn, ncommon, objval, nparts ;
+    
+    *ne = (nintcf - nintci + 1);
     nn = points_count; 
     
-    idx_t *eind = (idx_t*) malloc( 8*ne*sizeof(idx_t) );
-    idx_t *eptr = (idx_t*) malloc( (ne+1)*sizeof(idx_t) );
+    idx_t *eind = (idx_t*) malloc( 8*(*ne)*sizeof(idx_t) );
+    idx_t *eptr = (idx_t*) malloc( ((*ne)+1)*sizeof(idx_t) );
     
-    for (NC=0; NC<ne+1; NC++) {
+    for (NC=0; NC<(*ne)+1; NC++) {
       
       eptr[NC] = 8*NC;
       
     }
     
-    for (i=0; i<8*ne; i++) {
+    for (i=0; i<8*(*ne); i++) {
       eind[i] = elems[i];
     }
     
     //idx_t *epart;
     idx_t *npart;
     
-    epart = (idx_t*) malloc( ne*sizeof(idx_t) );
+    *epart = (idx_t*) malloc( (*ne)*sizeof(idx_t) );
     npart = (idx_t*) malloc( nn*sizeof(idx_t) );
     
     ncommon = 4;
@@ -113,11 +116,11 @@ void METIS_Partitioning(int **epart, int nprocs, int *elems){
     
     if (dual == 1)
     {
-      METIS_PartMeshDual(&ne, &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, &objval, epart, npart);
+      METIS_PartMeshDual(&(*ne), &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, &objval, *epart, npart);
     }
     else if (dual == 0)
     {
-      METIS_PartMeshNodal(&ne, &nn, eptr, eind, NULL, NULL, &nparts, NULL, NULL, &objval, epart, npart);
+      METIS_PartMeshNodal(&(*ne), &nn, eptr, eind, NULL, NULL, &nparts, NULL, NULL, &objval, *epart, npart);
     }
     
     free(npart);
@@ -127,6 +130,7 @@ void METIS_Partitioning(int **epart, int nprocs, int *elems){
 }
 
 
+// For allread case - run on each process
 void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nintcf_loc, int *nextci_loc,
 			     int *nextcf_loc, char *part_type, char*read_type, int nprocs, int myrank,
 			     int nintci, int nintcf, int nextci,
@@ -143,7 +147,7 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
   
   // If the classic mode chosen
   if (type == 0) {
-    int start_int, stop_int, quotient_int, remainder_int, num_terms_int;
+    int start_int, stop_int, quotient_int, remainder_int, num_terms_int, num_terms_ext;
      
     // Calculation of the indices of the int cells for each process
     
@@ -181,50 +185,10 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
   // If the metis mode chosen
   else if (type == 1) {
     
-//     idx_t options[METIS_NOPTIONS];
-//     //options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_VOL;
-//     
-//     METIS_SetDefaultOptions(options);
-//     
-//     idx_t ne, nn, ncommon, objval, nparts ;
-//     
-//     ne = (nintcf - nintci + 1);
-//     nn = points_count; 
-//     
-//     idx_t *eind = (idx_t*) malloc( 8*ne*sizeof(idx_t) );
-//     idx_t *eptr = (idx_t*) malloc( (ne+1)*sizeof(idx_t) );
-//     
-//     for (NC=0; NC<ne+1; NC++) {
-//       
-//       eptr[NC] = 8*NC;
-//       
-//     }
-//     
-//     for (i=0; i<8*ne; i++) {
-//       eind[i] = elems[i];
-//     }
-//     
-//     idx_t *epart;
-//     idx_t *npart;
-//     
-//     epart = (idx_t*) malloc( ne*sizeof(idx_t) );
-//     npart = (idx_t*) malloc( nn*sizeof(idx_t) );
-//     
-//     ncommon = 4;
-//     nparts = nprocs;
-//     
-//     if (dual == 1)
-//     {
-//       METIS_PartMeshDual(&ne, &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, &objval, epart, npart);
-//     }
-//     else if (dual == 0)
-//     {
-//       METIS_PartMeshNodal(&ne, &nn, eptr, eind, NULL, NULL, &nparts, NULL, NULL, &objval, epart, npart);
-//     }
-    
     idx_t *epart;
+    idx_t ne;
     
-    METIS_Partitioning(int **epart, int nprocs, int *elems)
+    METIS_Partitioning(&epart, &ne, nprocs, elems, nintci, nintcf, points_count, dual);
     
     int el_count=0;
     
@@ -266,9 +230,6 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     compute_boundary_stop(&boundary_direct_access, *local_global_index, nextcf, nextci, *nextci_loc, *nextcf_loc, lcc);
     
     free(epart);
-//     free(npart);
-//     free(eptr);
-//     free(eind);
     
 
   }
@@ -276,6 +237,8 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
 }
 
 
+
+// For oneread case - run on 0 thread and distribute returned data structures in initialization.c
 void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **nintcf_loc, int **nextci_loc,
 			     int **nextcf_loc, char *part_type, char*read_type, int nprocs,
 			     int nintci, int nintcf, int nextci,
@@ -283,7 +246,7 @@ void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **
 {
   
   
-  int i, j, NC;
+  int i, NC;
   int type, dual;
   int rank;
   
@@ -298,7 +261,7 @@ void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **
   
   // If the classic mode chosen
   if (type == 0) {
-    int start_int, stop_int, quotient_int, remainder_int, num_terms_int;
+    int start_int, stop_int, quotient_int, remainder_int, num_terms_int, num_terms_ext;
       
     // Calculation of the indices of the int cells for each process
     
@@ -340,55 +303,17 @@ void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **
   } // If the metis mode chosen
   else if (type == 1) {
     
-    idx_t options[METIS_NOPTIONS];
-    //options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_VOL;
-    
-    METIS_SetDefaultOptions(options);
-    
-    idx_t ne, nn, ncommon, objval, nparts ;
-    
-    ne = (nintcf - nintci + 1);//(nintcf - nintci + 2);
-    nn = points_count; //8*(nintcf - nintci + 1); 
-    
-    idx_t *eind = (idx_t*) malloc( 8*ne*sizeof(idx_t) );
-    idx_t *eptr = (idx_t*) malloc( (ne+1)*sizeof(idx_t) );
-    
-    for (NC=0; NC<ne+1; NC++) {
-      
-      eptr[NC] = 8*NC;
-      
-    }
-    
-    for (i=0; i<8*ne; i++) {
-      eind[i] = elems[i];
-    }
     
     idx_t *epart;
-    idx_t *npart;
+    idx_t ne;
     
-    epart = (idx_t*) malloc( ne*sizeof(idx_t) );
-    npart = (idx_t*) malloc( nn*sizeof(idx_t) );
-    
-    ncommon = 4;
-    nparts = nprocs;
-    
-    if (dual == 1)
-    {
-      METIS_PartMeshDual(&ne, &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, &objval, epart, npart);
-    }
-    else if (dual == 0)
-    {
-      METIS_PartMeshNodal(&ne, &nn, eptr, eind, NULL, NULL, &nparts, NULL, NULL, &objval, epart, npart);
-    }
-    
-    // TODO: Here the different code begins...
+    METIS_Partitioning(&epart, &ne, nprocs, elems, nintci, nintcf, points_count, dual);
     
     int* el_count;
     
     el_count = (int*)calloc( nprocs, sizeof(int) );
     
-    
-    
+
     for (NC=0; NC<ne; NC++) {
       
       (el_count[epart[NC]])++;
@@ -419,8 +344,6 @@ void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **
       (*nextcf_loc)[rank] = el_count[rank] + num_terms_ext - 1;
       
       
-      
-      
       compute_boundary_stop(&boundary_direct_access, (*local_global_index)[rank], nextcf, nextci, (*nextci_loc)[rank], (*nextcf_loc)[rank], lcc);
       
     }
@@ -439,11 +362,7 @@ void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **
     
     free(el_count);
     
-    
     free(epart);
-    free(npart);
-    free(eptr);
-    free(eind);
     
     
   }

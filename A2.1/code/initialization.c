@@ -5,7 +5,6 @@
  * @author V. Petkov, A. Berariu
  */
 
-
 //#define PAPI
 
 #include <stdlib.h>
@@ -20,15 +19,32 @@
 #include <papi.h>
 #endif
 
-
-void decide_key(char* file_in, char* part_type, char* read_type, int input_key, int part_key, int read_key );
-
-void write_vtk(char *file_in, char *scalars_name, int *local_global_index, int num_internal_cells, double *scalars, char *part_type, int myrank); 
+void write_vtk(char *file_in, char *scalars_name, int *local_global_index, int num_internal_cells, double *scalars, char *part_type, int myrank) 
+{
+  
+  int i;
+  
+  char file_vtk_out_name [100], buf[10];
+  
+  strcpy(file_vtk_out_name, file_in);
+  
+  // Finding ".geo.bin" and extracting just the needed part
+  char * pch;
+  pch = strstr (file_vtk_out_name,".geo.bin");
+  strncpy (pch,".",8);
+  strcat(file_vtk_out_name, scalars_name);
+  strcat(file_vtk_out_name, ".");
+  strcat(file_vtk_out_name, part_type);
+  strcat(file_vtk_out_name, ".rank");
+  snprintf (buf, 10, "%d.vtk", myrank);
+  strcat(file_vtk_out_name, buf);
+  printf("\n%s\n", file_vtk_out_name);
+  
+  test_distribution(file_in, file_vtk_out_name, local_global_index, num_internal_cells, scalars);
+  
+}
 
 int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local,int num_internal_cells, int num_cells, int *nintcf, int points_count, double **var, double **cgup, double **oc, double **cnorm);
-
-void local_global_exchange(int **LCC_local, double *bs_local, double *be_local, double *bn_local, double *bw_local, double *bh_local, double *bl_local, double *bp_local, double *su_local,
-int*** lcc, double** bs, double** be, double** bn, double** bw,double** bl, double** bh, double** bp, double** su );
 
 
 int initialization(char* file_in, char* part_type, char* read_type, int nprocs, int myrank,
@@ -40,12 +56,13 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
 {
   /********** START INITIALIZATION **********/
   
-  int i = 0;
-  int j = 0;
   #ifdef PAPI
+  /*PAPI initialization*/
+
   float rtime, ptime, mflops;
   long long flpops;
-  void handle_error (int retval)
+    
+	void handle_error (int retval)
 		{
 		     printf("PAPI error %d: %s\n", retval, PAPI_strerror(retval));
 		  exit(1);
@@ -55,9 +72,53 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
     
     /*decide key type*/
 int input_key, part_key, read_key;
-decide_key(file_in, part_type, read_type, input_key, part_key, read_key );
-    #endif
 
+if(strcmp(read_type, "oneread") == 0){
+read_key = 1;
+}
+
+if (strcmp(read_type, "allread") == 0){
+read_key = 2;
+}
+
+
+if(strcmp(part_type, "classic") == 0){
+part_key = 1;
+}
+
+if(strcmp(part_type, "dual") == 0){
+part_key = 2;
+}
+
+if(strcmp(part_type, "nodal") == 0){
+part_key = 3;
+}
+
+if((strcmp(file_in, "tjunc.geo.bin") ==0) ||(strcmp(file_in, "tjunc.geo.dat") ==0)  ){
+input_key = 1;
+}
+
+
+if((strcmp(file_in, "drall.geo.bin") ==0) ||(strcmp(file_in, "drall.geo.dat") ==0)  ){
+input_key = 2;
+}
+
+
+if((strcmp(file_in, "pent.geo.bin") ==0) ||(strcmp(file_in, "pent.geo.dat") ==0)  ){
+input_key = 3;
+}
+
+
+if((strcmp(file_in, "cojack.geo.bin") ==0) ||(strcmp(file_in, "cojack.geo.dat") ==0)  ){
+input_key = 4;
+}
+
+    #endif
+  
+  int i = 0;
+  int j = 0;
+  
+  
   /***************read-in the input file*********************/
   /*for oneread only processor 0 reads the data*/
   if (strcmp(read_type, "oneread") == 0 ) {
@@ -84,7 +145,7 @@ decide_key(file_in, part_type, read_type, input_key, part_key, read_key );
   /*local property*/
   int num_cells;
   int num_internal_cells;
-  int source;
+  int /*sendcount, recvcount,*/ source;
   int Nintci_loc, Nintcf_loc, Nextci_loc, Nextcf_loc;/*local index for the beginning and ending of internal/external cells*/
   
   /*initialize the array which will only be contained locally*/ 
@@ -94,7 +155,19 @@ decide_key(file_in, part_type, read_type, input_key, part_key, read_key );
   double *su_local; 
   int local_global_points_count= *points_count;
 
-/**/
+  
+  
+  /*int length_loc_index;*/
+  /*int local_global_index_temp*/
+  
+  /*sendcount = 1;
+   *        recvcount = 1;
+   *        source = 0;
+   *       MPI_Scatter(&nintci_loc[0],sendcount,MPI_INT,&Nintci_loc,recvcount,MPI_INT,source,MPI_COMM_WORLD);
+   *       MPI_Scatter(&nintcf_loc[0],sendcount,MPI_INT,&Nintcf_loc,recvcount,MPI_INT,source,MPI_COMM_WORLD);
+   *       MPI_Scatter(&nextci_loc[0],sendcount,MPI_INT,&Nextci_loc,recvcount,MPI_INT,source,MPI_COMM_WORLD);
+   *       MPI_Scatter(&nextcf_loc[0],sendcount,MPI_INT,&Nextcf_loc,recvcount,MPI_INT,source,MPI_COMM_WORLD);*/
+  
   
   if(strcmp(read_type, "oneread") == 0){
     
@@ -103,13 +176,22 @@ decide_key(file_in, part_type, read_type, input_key, part_key, read_key );
     int ** local_global_index_array;
     int *nintci_loc_array, *nintcf_loc_array, *nextci_loc_array, *nextcf_loc_array, *length_loc_index_array;
     int local_global_nintcf;
-    int array_length_loc_index;
+    
+    int length_loc_index;
     
     if (0 == myrank){
-      oneread_calc_global_idx(&*local_global_index_array, &*nintci_loc_array, &*nintcf_loc_array, &*nextci_loc_array,
-			      &*nextcf_loc_array, part_type, read_type, nprocs,*nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count);
-    int dest;
-    length_loc_index_array = (int*) malloc(nprocs*sizeof(int));
+
+     
+      oneread_calc_global_idx(&local_global_index_array, &nintci_loc_array, &nintcf_loc_array, &nextci_loc_array,
+			      &nextcf_loc_array, part_type, read_type, nprocs,
+			      *nintci, *nintcf, *nextci,
+			      *nextcf, *lcc, *elems, *points_count);
+      
+
+      
+      int dest;
+      
+      length_loc_index_array = (int*) malloc(nprocs*sizeof(int));
       
       for (i=0; i<nprocs; i++) {
 	length_loc_index_array[i] = nextcf_loc_array[i] - nintci_loc_array[i] + 1;
@@ -117,34 +199,40 @@ decide_key(file_in, part_type, read_type, input_key, part_key, read_key );
       
       // For 0 process
       
-      array_length_loc_index = length_loc_index_array[0];
+      length_loc_index = length_loc_index_array[0];
       
       Nintci_loc = nintci_loc_array[0];
       Nintcf_loc = nintcf_loc_array[0];
       Nextci_loc = nextci_loc_array[0];
       Nextcf_loc = nextcf_loc_array[0];
       
-      (*local_global_index) = (int*)malloc(array_length_loc_index*sizeof(int)); 
+      (*local_global_index) = (int*)malloc(length_loc_index*sizeof(int)); 
       
-      for (i=0; i<array_length_loc_index; i++) {
+      
+      
+      for (i=0; i<length_loc_index; i++) {
 	(*local_global_index)[i] = local_global_index_array[0][i];
       }
-     
+      
+      
       for (dest = 1; dest<nprocs; dest++){
 	MPI_Send(&(length_loc_index_array[dest]), 1, MPI_INT, dest, 0, MPI_COMM_WORLD);
 	MPI_Send(&(nintci_loc_array[dest]), 1, MPI_INT, dest, 1, MPI_COMM_WORLD);
 	MPI_Send(&(nintcf_loc_array[dest]), 1, MPI_INT, dest, 2, MPI_COMM_WORLD);
 	MPI_Send(&(nextci_loc_array[dest]), 1, MPI_INT, dest, 3, MPI_COMM_WORLD);
 	MPI_Send(&(nextcf_loc_array[dest]), 1, MPI_INT, dest, 4, MPI_COMM_WORLD);
-	MPI_Send(local_global_index_array[dest], array_length_loc_index_array[dest], MPI_INT, dest, 5, MPI_COMM_WORLD);
+	MPI_Send(local_global_index_array[dest], length_loc_index_array[dest], MPI_INT, dest, 5, MPI_COMM_WORLD);
 	MPI_Send(nintcf, 1, MPI_INT, dest, 6, MPI_COMM_WORLD);
 	MPI_Send(points_count, 1, MPI_INT, dest, 7, MPI_COMM_WORLD);
+	
+	
       }
+      
     }
     
     if (myrank>0){
-      MPI_Recv(&array_length_loc_index,1,MPI_INT,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-      if ((*local_global_index = (int*)malloc(array_length_loc_index*sizeof(int)))== NULL){
+      MPI_Recv(&length_loc_index,1,MPI_INT,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+      if ((*local_global_index = (int*)malloc(length_loc_index*sizeof(int)))== NULL){
 	fprintf(stderr, "malloc(local_global_index) failed\n");
 	return -1;
       }
@@ -152,7 +240,7 @@ decide_key(file_in, part_type, read_type, input_key, part_key, read_key );
       MPI_Recv(&Nintcf_loc,1,MPI_INT,0,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv(&Nextci_loc,1,MPI_INT,0,3,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv(&Nextcf_loc,1,MPI_INT,0,4,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-      MPI_Recv((*local_global_index),array_length_loc_index,MPI_INT,0,5,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+      MPI_Recv((*local_global_index),length_loc_index,MPI_INT,0,5,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv(&local_global_nintcf, 1, MPI_INT, 0, 6, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv(&local_global_points_count, 1, MPI_INT, 0, 7, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 
@@ -179,7 +267,11 @@ decide_key(file_in, part_type, read_type, input_key, part_key, read_key );
 	  bl_local[i] = (*bl)[local_global_index_array[dest][i]];
 	  bp_local[i] = (*bp)[local_global_index_array[dest][i]];
 	  su_local[i] = (*su)[local_global_index_array[dest][i]];
+	  
+	  
+	  
 	}
+	
 	
 	MPI_Send(bs_local, num_cells, MPI_DOUBLE, dest, 0, MPI_COMM_WORLD);
 	MPI_Send(be_local, num_cells, MPI_DOUBLE, dest, 1, MPI_COMM_WORLD);
@@ -259,6 +351,7 @@ decide_key(file_in, part_type, read_type, input_key, part_key, read_key );
       
     }
     
+   // MPI_Barrier(MPI_COMM_WORLD);
     
     
     if (myrank==0){
@@ -310,7 +403,10 @@ decide_key(file_in, part_type, read_type, input_key, part_key, read_key );
       free(*bl);
       free(*bp);
       free(*su); 
- 
+      
+      
+
+      
       *lcc = LCC_local;
       *bs = bs_local;
       *be = be_local;
@@ -362,9 +458,9 @@ decide_key(file_in, part_type, read_type, input_key, part_key, read_key );
     }
     
     
-#ifdef PAPI
+    #ifdef PAPI
     
-/*PAPI test ended*/  
+    /*PAPI test ended*/  
 if(PAPI_flops( &rtime, &ptime, &flpops, &mflops ) != PAPI_OK) handle_error(1);
 
 /*output the PAPI result*/
@@ -372,18 +468,29 @@ if(PAPI_flops( &rtime, &ptime, &flpops, &mflops ) != PAPI_OK) handle_error(1);
 write_pstats_partition(input_key, part_key, myrank, num_internal_cells, (Nextcf_loc - Nextci_loc +1) );
 
 #endif
-  
+
+    
     // Visualisation - begin
+
+    
+
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
-   // Visualisation - end
- }
+    
+
+
+    // Visualisation - end
+    
+
+    
+ //   MPI_Barrier(MPI_COMM_WORLD);
+  }
   
   
   
   if(strcmp(read_type, "allread") == 0){/**** 1****/
     
-    allread_calc_global_idx( &(*local_global_index), &Nintci_loc, &Nintcf_loc, &Nextci_loc, &Nextcf_loc, part_type, read_type, nprocs, myrank, *nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count);     
+    allread_calc_global_idx( &(*local_global_index), &Nintci_loc, &Nintcf_loc, &Nextci_loc, &Nextcf_loc, part_type, read_type, nprocs, myrank,/*2,0,*/ *nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count);     
     
     num_cells = Nextcf_loc - Nintci_loc +1;
     num_internal_cells = Nintcf_loc - Nintci_loc +1;
@@ -391,7 +498,9 @@ write_pstats_partition(input_key, part_key, myrank, num_internal_cells, (Nextcf_
     /************************ Array memory allocation *******************************/
     
     memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, /**points_count, &points_local, &elems_local,*/ num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
-  
+    
+    
+    
     /*****************   Read Data   ***************/
     /*read LCC for LCC_local*/
     for (i =Nintci_loc; i <=Nintcf_loc; i++){
@@ -440,17 +549,39 @@ write_pstats_partition(input_key, part_key, myrank, num_internal_cells, (Nextcf_
   }/******  1  ********/
   
   if(strcmp(read_type, "allread") == 0){
-
- /*exchange the memory name for local and global and free the global one*/
- local_global_exchange(LCC_local, bs_local, be_local, bn_local, bw_local, bh_local, bl_local, bp_local, su_local,lcc, bs, be, bn, bw, bl, bh, bp,su);
-
+    
+    /*exchange the memory name for local and global and free the global one*/
+    int **LCC_local_temp=NULL; 
+    double *bs_local_temp=NULL;
+    double *be_local_temp = NULL;
+    double *bn_local_temp = NULL;
+    double *bw_local_temp = NULL; 
+    double *bh_local_temp = NULL;
+    double *bl_local_temp = NULL;
+    double *bp_local_temp = NULL; 
+    double *su_local_temp = NULL;
+    
+    
+    LCC_local_temp = LCC_local; LCC_local = *lcc;  *lcc = LCC_local_temp;
+    bs_local_temp = bs_local; bs_local = *bs;  *bs = bs_local_temp;
+    be_local_temp = be_local; be_local = *be;  *be = be_local_temp;
+    bn_local_temp = bn_local; bn_local = *bn;  *bn = bn_local_temp;
+    bw_local_temp = bw_local; bw_local = *bw;  *bw = bw_local_temp;
+    bh_local_temp = bh_local; bh_local = *bh;  *bh = bh_local_temp;
+    bl_local_temp = bl_local; bl_local = *bl;  *bl = bl_local_temp;
+    bp_local_temp = bp_local; bp_local = *bp;  *bp = bp_local_temp;
+    su_local_temp = su_local; su_local = *su;  *su = su_local_temp;
+    
+    
 #ifdef PAPI
+    
     /*PAPI test ended*/  
 if(PAPI_flops( &rtime, &ptime, &flpops, &mflops ) != PAPI_OK) handle_error(1);
 
 /*output the PAPI result*/
   write_pstats_exectime(input_key, part_key, read_key, myrank, ptime);
 write_pstats_partition(input_key, part_key, myrank, num_internal_cells, (Nextcf_loc - Nextci_loc +1) );
+
 #endif
     
     
@@ -469,6 +600,9 @@ write_pstats_partition(input_key, part_key, myrank, num_internal_cells, (Nextcf_
     
     free(ranks);
     // Visualisation - end
+    
+    
+    
  
     free(su_local);
     free(bp_local);
@@ -478,12 +612,16 @@ write_pstats_partition(input_key, part_key, myrank, num_internal_cells, (Nextcf_
     free(bn_local);
     free(be_local);
     free(bs_local);
-
+    
+    
     for ( i = 0; i < (*nintcf + 1); i++ ) {
       free(LCC_local[i]);
     }
     free(LCC_local);
-    }
+    
+
+    
+  }
   
   /*return back element information also to gloabl data */
   
@@ -510,53 +648,10 @@ for ( i = 0; i < local_global_points_count; i++ ) {
   *nextci = Nextci_loc;
   *nextcf = Nextcf_loc;
 
+  
+  
   return 0;
 }
-
-
-
-void decide_key(char* file_in, char* part_type, char* read_type, int input_key, int part_key, int read_key )
-{
-	if(strcmp(read_type, "oneread") == 0){
-	read_key = 1;
-	}
-
-	if (strcmp(read_type, "allread") == 0){
-	read_key = 2;
-	}
-
-
-	if(strcmp(part_type, "classic") == 0){
-	part_key = 1;
-	}
-
-	if(strcmp(part_type, "dual") == 0){
-	part_key = 2;
-	}
-
-	if(strcmp(part_type, "nodal") == 0){
-	part_key = 3;
-	}
-
-	if((strcmp(file_in, "tjunc.geo.bin") ==0) ||(strcmp(file_in, "tjunc.geo.dat") ==0)  ){
-	input_key = 1;
-	}
-
-
-	if((strcmp(file_in, "drall.geo.bin") ==0) ||(strcmp(file_in, "drall.geo.dat") ==0)  ){
-	input_key = 2;
-	}
-
-
-	if((strcmp(file_in, "pent.geo.bin") ==0) ||(strcmp(file_in, "pent.geo.dat") ==0)  ){
-	input_key = 3;
-	}
-
-
-	if((strcmp(file_in, "cojack.geo.bin") ==0) ||(strcmp(file_in, "cojack.geo.dat") ==0)  ){
-	input_key = 4;
-	}
-}//decide key
 
 int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local, /*int points_count_local,int ***points_local, int **elems_local,*/ int num_internal_cells, int num_cells, int *nintcf, int points_count, double **var, double **cgup, double **oc, double **cnorm)
 {
@@ -623,52 +718,3 @@ int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, dou
   *cnorm = (double*) calloc(sizeof(double), (num_internal_cells));
 }//memory allocation
 
-void local_global_exchange(int **LCC_local, double *bs_local, double *be_local, double *bn_local, double *bw_local, double *bh_local, double *bl_local, double *bp_local, double *su_local,
-int*** lcc, double** bs, double** be, double** bn, double** bw,double** bl, double** bh, double** bp, double** su ) {   
-/*exchange the memory name for local and global and free the global one*/
-    int **LCC_local_temp=NULL; 
-    double *bs_local_temp=NULL;
-    double *be_local_temp = NULL;
-    double *bn_local_temp = NULL;
-    double *bw_local_temp = NULL; 
-    double *bh_local_temp = NULL;
-    double *bl_local_temp = NULL;
-    double *bp_local_temp = NULL; 
-    double *su_local_temp = NULL;
-    
-    
-    LCC_local_temp = LCC_local; LCC_local = *lcc;  *lcc = LCC_local_temp;
-    bs_local_temp = bs_local; bs_local = *bs;  *bs = bs_local_temp;
-    be_local_temp = be_local; be_local = *be;  *be = be_local_temp;
-    bn_local_temp = bn_local; bn_local = *bn;  *bn = bn_local_temp;
-    bw_local_temp = bw_local; bw_local = *bw;  *bw = bw_local_temp;
-    bh_local_temp = bh_local; bh_local = *bh;  *bh = bh_local_temp;
-    bl_local_temp = bl_local; bl_local = *bl;  *bl = bl_local_temp;
-    bp_local_temp = bp_local; bp_local = *bp;  *bp = bp_local_temp;
-    su_local_temp = su_local; su_local = *su;  *su = su_local_temp;
-  }  //local_global_exchange
-
-void write_vtk(char *file_in, char *scalars_name, int *local_global_index, int num_internal_cells, double *scalars, char *part_type, int myrank) 
-{
-  
-  int i;
-  
-  char file_vtk_out_name [100], buf[10];
-  
-  strcpy(file_vtk_out_name, file_in);
-  
-  // Finding ".geo.bin" and extracting just the needed part
-  char * pch;
-  pch = strstr (file_vtk_out_name,".geo.bin");
-  strncpy (pch,".",8);
-  strcat(file_vtk_out_name, scalars_name);
-  strcat(file_vtk_out_name, ".");
-  strcat(file_vtk_out_name, part_type);
-  strcat(file_vtk_out_name, ".rank");
-  snprintf (buf, 10, "%d.vtk", myrank);
-  strcat(file_vtk_out_name, buf);
-  printf("\n%s\n", file_vtk_out_name);
-  
-  test_distribution(file_in, file_vtk_out_name, local_global_index, num_internal_cells, scalars);
-  
-}//write_vtk
