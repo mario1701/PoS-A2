@@ -11,6 +11,8 @@
 #include <metis.h>
 #include <string.h>
 
+// Start counting the external cells
+// If an internal cell belonging to the particular process refers to an external cell, increase its counter
 void compute_boundary_start(int** boundary_direct_access, int *num_terms_ext, int nextcf, int nextci, int nintci_loc, int nintcf_loc, int **lcc)  {
   
   // Direct access table
@@ -37,6 +39,7 @@ void compute_boundary_start(int** boundary_direct_access, int *num_terms_ext, in
   
 }
 
+// Append the external cells that were reffered at least once by internals cell to the mapping array
 void compute_boundary_stop(int** boundary_direct_access, int *local_global_index, int nextcf, int nextci, int nextci_loc, int nextcf_loc, int **lcc) {
   
   int j=0;
@@ -54,8 +57,7 @@ void compute_boundary_stop(int** boundary_direct_access, int *local_global_index
   
 }
 
-
-
+// Deterine the type of data distribution
 void determine_type(int *type, int *dual, char *part_type) {
   
   if(strcmp(part_type, "classic")==0){
@@ -72,6 +74,55 @@ void determine_type(int *type, int *dual, char *part_type) {
     *type = 1;
     *dual = 0;
   }
+  
+}
+
+void METIS_Partitioning(int **epart, int nprocs, int *elems){
+ 
+    idx_t options[METIS_NOPTIONS];
+    //options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_VOL;
+    
+    METIS_SetDefaultOptions(options);
+    
+    idx_t ne, nn, ncommon, objval, nparts ;
+    
+    ne = (nintcf - nintci + 1);
+    nn = points_count; 
+    
+    idx_t *eind = (idx_t*) malloc( 8*ne*sizeof(idx_t) );
+    idx_t *eptr = (idx_t*) malloc( (ne+1)*sizeof(idx_t) );
+    
+    for (NC=0; NC<ne+1; NC++) {
+      
+      eptr[NC] = 8*NC;
+      
+    }
+    
+    for (i=0; i<8*ne; i++) {
+      eind[i] = elems[i];
+    }
+    
+    //idx_t *epart;
+    idx_t *npart;
+    
+    epart = (idx_t*) malloc( ne*sizeof(idx_t) );
+    npart = (idx_t*) malloc( nn*sizeof(idx_t) );
+    
+    ncommon = 4;
+    nparts = nprocs;
+    
+    if (dual == 1)
+    {
+      METIS_PartMeshDual(&ne, &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, &objval, epart, npart);
+    }
+    else if (dual == 0)
+    {
+      METIS_PartMeshNodal(&ne, &nn, eptr, eind, NULL, NULL, &nparts, NULL, NULL, &objval, epart, npart);
+    }
+    
+    free(npart);
+    free(eptr);
+    free(eind);
   
 }
 
@@ -93,9 +144,7 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
   // If the classic mode chosen
   if (type == 0) {
     int start_int, stop_int, quotient_int, remainder_int, num_terms_int;
-    int start_ext, stop_ext, quotient_ext, remainder_ext, num_terms_ext;
-    
-    
+     
     // Calculation of the indices of the int cells for each process
     
     num_terms_int = nintcf - nintci + 1;
@@ -132,46 +181,50 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
   // If the metis mode chosen
   else if (type == 1) {
     
-    idx_t options[METIS_NOPTIONS];
-    //options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_VOL;
-    
-    METIS_SetDefaultOptions(options);
-    
-    idx_t ne, nn, ncommon, objval, nparts ;
-    
-    ne = (nintcf - nintci + 1);//(nintcf - nintci + 2);
-    nn = points_count; //8*(nintcf - nintci + 1); 
-    
-    idx_t *eind = (idx_t*) malloc( 8*ne*sizeof(idx_t) );
-    idx_t *eptr = (idx_t*) malloc( (ne+1)*sizeof(idx_t) );
-    
-    for (NC=0; NC<ne+1; NC++) {
-      
-      eptr[NC] = 8*NC;
-      
-    }
-    
-    for (i=0; i<8*ne; i++) {
-      eind[i] = elems[i];
-    }
+//     idx_t options[METIS_NOPTIONS];
+//     //options[METIS_OPTION_OBJTYPE] = METIS_OBJTYPE_VOL;
+//     
+//     METIS_SetDefaultOptions(options);
+//     
+//     idx_t ne, nn, ncommon, objval, nparts ;
+//     
+//     ne = (nintcf - nintci + 1);
+//     nn = points_count; 
+//     
+//     idx_t *eind = (idx_t*) malloc( 8*ne*sizeof(idx_t) );
+//     idx_t *eptr = (idx_t*) malloc( (ne+1)*sizeof(idx_t) );
+//     
+//     for (NC=0; NC<ne+1; NC++) {
+//       
+//       eptr[NC] = 8*NC;
+//       
+//     }
+//     
+//     for (i=0; i<8*ne; i++) {
+//       eind[i] = elems[i];
+//     }
+//     
+//     idx_t *epart;
+//     idx_t *npart;
+//     
+//     epart = (idx_t*) malloc( ne*sizeof(idx_t) );
+//     npart = (idx_t*) malloc( nn*sizeof(idx_t) );
+//     
+//     ncommon = 4;
+//     nparts = nprocs;
+//     
+//     if (dual == 1)
+//     {
+//       METIS_PartMeshDual(&ne, &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, &objval, epart, npart);
+//     }
+//     else if (dual == 0)
+//     {
+//       METIS_PartMeshNodal(&ne, &nn, eptr, eind, NULL, NULL, &nparts, NULL, NULL, &objval, epart, npart);
+//     }
     
     idx_t *epart;
-    idx_t *npart;
     
-    epart = (idx_t*) malloc( ne*sizeof(idx_t) );
-    npart = (idx_t*) malloc( nn*sizeof(idx_t) );
-    
-    ncommon = 4;
-    nparts = nprocs;
-    
-    if (dual == 1)
-    {
-      METIS_PartMeshDual(&ne, &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, &objval, epart, npart);
-    }
-    else if (dual == 0)
-    {
-      METIS_PartMeshNodal(&ne, &nn, eptr, eind, NULL, NULL, &nparts, NULL, NULL, &objval, epart, npart);
-    }
+    METIS_Partitioning(int **epart, int nprocs, int *elems)
     
     int el_count=0;
     
@@ -213,9 +266,9 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     compute_boundary_stop(&boundary_direct_access, *local_global_index, nextcf, nextci, *nextci_loc, *nextcf_loc, lcc);
     
     free(epart);
-    free(npart);
-    free(eptr);
-    free(eind);
+//     free(npart);
+//     free(eptr);
+//     free(eind);
     
 
   }
@@ -246,9 +299,7 @@ void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **
   // If the classic mode chosen
   if (type == 0) {
     int start_int, stop_int, quotient_int, remainder_int, num_terms_int;
-    int start_ext, stop_ext, quotient_ext, remainder_ext, num_terms_ext;
-    
-    
+      
     // Calculation of the indices of the int cells for each process
     
     num_terms_int = nintcf - nintci + 1;
@@ -267,8 +318,7 @@ void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **
       (*nintcf_loc)[rank] = stop_int - start_int - 1;
       (*nextci_loc)[rank] = stop_int - start_int;
       
-      
-      
+
       // Calculation of the number of external cells belonging to a process
       int *boundary_direct_access;
       compute_boundary_start(&boundary_direct_access, &num_terms_ext, nextcf, nextci, (*nintci_loc)[rank], (*nintcf_loc)[rank], lcc);
