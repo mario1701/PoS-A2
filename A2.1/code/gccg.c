@@ -113,18 +113,17 @@ int main(int argc, char *argv[]) {
     free(be);
     free(bs);
     free(elems);
-printf("OK after elems from processor %d! \n");
 
     for ( i = 0; i < nintcf + 1; i++ ) {
         free(lcc[i]);
     }
     free(lcc);
-printf("OK after lcc from processor %d! \n");
+
     for ( i = 0; i < points_count; i++ ) {
         free(points[i]);
     }
     free(points);
-printf("OK after points from processor %d! \n");
+
     MPI_Finalize();    /// cleanup MPI
 
     return 0;

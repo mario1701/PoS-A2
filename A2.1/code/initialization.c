@@ -107,7 +107,7 @@ input_key = 4;
   double *bs_local, *be_local, *bn_local, *bw_local, *bh_local, *bl_local;
   double *bp_local; 
   double *su_local; 
-  int local_global_points_count= *points_count;
+  //int local_global_points_count= *points_count;
   
   if(strcmp(read_type, "oneread") == 0){
      MPI_Status Status[6];
@@ -165,7 +165,7 @@ input_key = 4;
       MPI_Recv(&Nextcf_loc,1,MPI_INT,0,4,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv((*local_global_index),length_loc_index,MPI_INT,0,5,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv(&local_global_nintcf, 1, MPI_INT, 0, 6, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-      MPI_Recv(&local_global_points_count, 1, MPI_INT, 0, 7, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+      MPI_Recv(&(*points_count), 1, MPI_INT, 0, 7, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
     }//if (myrank>0)
     
     /*Data Transfer*/
@@ -231,7 +231,7 @@ input_key = 4;
       num_cells = Nextcf_loc - Nintci_loc +1;
       num_internal_cells = Nintcf_loc  - Nintci_loc +1;
       
-      memoryallocation(lcc, bs, be, bn, bw, bh, bl, bp, su, num_internal_cells, num_cells, &local_global_nintcf, local_global_points_count, &*var, &*cgup, &*oc, &*cnorm);
+      memoryallocation(lcc, bs, be, bn, bw, bh, bl, bp, su, num_internal_cells, num_cells, &local_global_nintcf, (*points_count), &*var, &*cgup, &*oc, &*cnorm);
      
       MPI_Recv(*bs, num_cells, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       MPI_Recv(*be, num_cells, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -340,12 +340,12 @@ if ( (*elems = (int*) malloc((Nintcf_loc + 1) * 8 * sizeof(int))) == NULL ) {
         fprintf(stderr, "malloc failed to allocate elems");
         return -1;
     }
-if ( (*points = (int **) calloc(local_global_points_count, sizeof(int*))) == NULL ) {
+if ( (*points = (int **) calloc((*points_count), sizeof(int*))) == NULL ) {
         fprintf(stderr, "malloc() POINTS 1st dim. failed\n");
         return -1;
     }
 
-    for ( i = 0; i < local_global_points_count; i++ ) {
+    for ( i = 0; i < (*points_count); i++ ) {
         if ( ((*points)[i] = (int *) calloc(3, sizeof(int))) == NULL ) {
             fprintf(stderr, "malloc() POINTS 2nd dim. failed\n");
             return -1;
@@ -456,7 +456,7 @@ if ( (*points = (int **) calloc(local_global_points_count, sizeof(int*))) == NUL
     free(LCC_local);  
   }//if(strcmp(read_type, "allread") == 0)
   
-  *points_count = local_global_points_count;
+  //*points_count = local_global_points_count;
   
   *nintci = Nintci_loc;
   *nintcf = Nintcf_loc;
