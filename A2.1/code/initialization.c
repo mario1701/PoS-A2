@@ -335,6 +335,24 @@ input_key = 4;
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
 
+/*allocate memory for elems and points for processor >0 */
+if ( (*elems = (int*) malloc((Nintcf_loc + 1) * 8 * sizeof(int))) == NULL ) {
+        fprintf(stderr, "malloc failed to allocate elems");
+        return -1;
+    }
+if ( (*points = (int **) calloc(local_global_points_count, sizeof(int*))) == NULL ) {
+        fprintf(stderr, "malloc() POINTS 1st dim. failed\n");
+        return -1;
+    }
+
+    for ( i = 0; i < local_global_points_count; i++ ) {
+        if ( ((*points)[i] = (int *) calloc(3, sizeof(int))) == NULL ) {
+            fprintf(stderr, "malloc() POINTS 2nd dim. failed\n");
+            return -1;
+        }
+    }
+
+
   }//if(strcmp(read_type, "oneread") == 0)
   
   
