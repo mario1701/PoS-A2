@@ -108,10 +108,10 @@ void METIS_Partitioning(idx_t **epart, idx_t *ne, int nprocs, int *elems, int ni
 }
 
 // For allread case - run on each process
-void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nintcf_loc, int *nextci_loc,
+void allread_calc_global_idx(int** local_global_index, int **global_local_index, int *nintci_loc, int *nintcf_loc, int *nextci_loc,
 			     int *nextcf_loc, char *part_type, char*read_type, int nprocs, int myrank,
 			     int nintci, int nintcf, int nextci,
-			     int nextcf, int** lcc, int* elems, int points_count) 
+			     int nextcf, int** lcc, int* elems, int points_count, int *nghb_cnt, int** nghb_to_rank, int** send_cnt, int*** send_lst, int **recv_cnt, int*** recv_lst ) 
 {
   // Assume 0 value of nintci
   *nintci_loc = 0;
@@ -148,7 +148,7 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
   
   // If the metis mode chosen
   else if (type == 1) {    
-    idx_t *epart;
+    idx_t *epart;//storing the partition information for elements
     idx_t ne;
     
     METIS_Partitioning(&epart, &ne, nprocs, elems, nintci, nintcf, points_count, dual);    
@@ -167,6 +167,12 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     int *boundary_direct_access;
     compute_boundary_start(&boundary_direct_access, &num_terms_ext, nextcf, nextci, *nintci_loc, *nintcf_loc, lcc);
    *local_global_index = (int*)malloc( (el_count + num_terms_ext)*sizeof(int) );
+   /*allocate memory and initlaize global_local_index with -1*/
+    *global_local_index = (int*)malloc((nintcf+1)*sizeof(int));
+    int k = 0;
+    for (k=0; k<nintcf+1; k++){
+        (*global_local_index)[k]=-1;
+    }
     
     *nextci_loc = el_count;
     *nextcf_loc = el_count + num_terms_ext - 1;
@@ -175,10 +181,60 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
     for (NC=0; NC<ne; NC++) {
       if (epart[NC] == myrank) {
 	(*local_global_index)[i] =  NC;
+	(*global_local_index)[NC] = i;
 	i++;
       }
     }
     compute_boundary_stop(&boundary_direct_access, *local_global_index, nextcf, nextci, *nextci_loc, *nextcf_loc, lcc);
+
+	/*quasi hash-table for the neighbour search*/
+	int *neighbour_search;
+	neighbour_search = (int*)calloc((nintcf+1),sizeof(int));
+
+    /*check total number of neighbours */
+	int global_index_temp;
+	int current_neighbour; 
+    for ( i =0; i< el_count; i++){
+		/*global index for the current local element */        
+		global_index_temp = (*local_global_index)[i];
+		for (j =0; j<6; j++){
+			current_neighbour = lcc[global_index_temp][j];
+
+			if(current_neighbour > nintcf)
+				continue;
+			
+			neighbour_search[current_neighbour] += 1; 
+		}
+    }
+
+	/*if the neighbors is inside this core, set it to 0 again*/
+	for ( i =0; i< el_count; i++){
+		neighbour_search[(*local_global_index)[i]] =0;	
+	}
+
+	/*count the number of neighbours*/
+	for ( i = 0; i<nintcf+1; i++){
+		if(neighbour_search[i] >0)
+			*nghb_cnt += 1;
+	}
+	
+	/*create the mapping for */
+	int counter = 0;
+	*send_cnt = (int*)calloc((*nghb_cnt), sizeof(int));
+	for( i = 0; i<nintcf+1; i++){
+		if(neighbour_search[i] >0)
+			(*send_cnt)[counter] = epart[i];
+		counter ++;
+	}
+
+
+	/*check the number of neighbours on each processor*/
+
+
+
+
+
+	free(neighbour_search);
     free(epart);
    }//else if (type == 1)
 }// allread_calc_global_idx

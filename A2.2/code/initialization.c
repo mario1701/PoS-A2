@@ -337,7 +337,8 @@ if ( (*points = (int **) calloc((*points_count), sizeof(int*))) == NULL ) {
   
   if(strcmp(read_type, "allread") == 0){
     
-    allread_calc_global_idx( &(*local_global_index), &Nintci_loc, &Nintcf_loc, &Nextci_loc, &Nextcf_loc, part_type, read_type, nprocs, myrank,*nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count);     
+    allread_calc_global_idx( &(*local_global_index), &(*global_local_index), &Nintci_loc, &Nintcf_loc, &Nextci_loc, &Nextcf_loc, part_type, read_type, nprocs, myrank,*nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count,&(*nghb_cnt), &(*nghb_to_rank), &(*send_cnt), &(*send_lst), 
+                   &(*recv_cnt), &(*recv_lst));     
     
     num_cells = Nextcf_loc - Nintci_loc +1;
     num_internal_cells = Nintcf_loc - Nintci_loc +1;
@@ -516,6 +517,8 @@ int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, dou
   *var = (double*) calloc(sizeof(double), (num_cells));
   *cgup = (double*) calloc(sizeof(double), (num_cells));
   *cnorm = (double*) calloc(sizeof(double), (num_internal_cells));
+
+  return 0;
 }//memory allocation
 
 void write_vtk(char *file_in, char *scalars_name, int *local_global_index, int num_internal_cells, double *scalars, char *part_type, int myrank) 
