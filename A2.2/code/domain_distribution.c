@@ -191,6 +191,10 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
 	int *neighbour_search;
 	neighbour_search = (int*)calloc((nintcf+1),sizeof(int));
 
+	/*allocate memory for send_cnt and revc_cnt*/
+		*send_cnt = (int*)calloc(nprocs,sizeof(int));
+		*recv_cnt = (int*)calloc(nprocs,sizeof(int));
+
     /*check total number of neighbours */
 	int global_index_temp;
 	int current_neighbour; 
@@ -212,18 +216,49 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
 		neighbour_search[(*local_global_index)[i]] =0;	
 	}
 
-	/*count the number of neighbours*/
+	int destination =0;
+	/*count the number of neighbours and the destination of sending*/
 	for ( i = 0; i<nintcf+1; i++){
 		if(neighbour_search[i] >0)
 			*nghb_cnt += 1;
+		destination = epart[i];
+		(*send_cnt)[destination] += 1;
+		(*recv_cnt)[destination] += 1;
 	}
+	/*memory allocation for nghb_to_rank, send_lst and recv_lst */
+	*nghb_to_rank = (int*)malloc((*nghb_cnt)*sizeof(int));
+	if ( (*send_lst) = (int**) malloc(nprocs * sizeof(int*)) == NULL ) {
+	        fprintf(stderr, "malloc failed to allocate first dimension of send_lst");
+	    }
+	    for ( i = 0; i < nprocs; i++ ) {
+	        if ( ((*send_lst)[i] = (int *) malloc((*send_cnt)[i] * sizeof(int))) == NULL ) {
+	            fprintf(stderr, "malloc failed to allocate second dimension of send_lst\n");
+	        }
+	    }
+
+	    if ( (*recv_lst) = (int**) malloc(nprocs * sizeof(int*)) == NULL ) {
+	    	        fprintf(stderr, "malloc failed to allocate first dimension of recv_lst");
+	    	    }
+	    	    for ( i = 0; i < nprocs; i++ ) {
+	    	        if ( ((*recv_lst)[i] = (int *) malloc((*send_cnt)[i] * sizeof(int))) == NULL ) {
+	    	            fprintf(stderr, "malloc failed to allocate second dimension of recv_lst\n");
+	    	        }
+	    	    }
+
+	/*create send_lst and recv_lst */
+
 	
-	/*create the mapping for */
-	int counter = 0;
-	*send_cnt = (int*)calloc((*nghb_cnt), sizeof(int));
+
+
+
+	    	    int counter = 0;
+	int counter_for_send_lst =0;
 	for( i = 0; i<nintcf+1; i++){
 		if(neighbour_search[i] >0)
-			(*send_cnt)[counter] = epart[i];
+			(*nghb_to_rank)[counter] = epart[i];
+			destination = epart[i];
+			(*send_lst)[destination][counter_for_send_lst] = i;
+			(*recv_lst)[destination][counter_for_send_lst] = ?????
 		counter ++;
 	}
 
