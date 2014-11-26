@@ -89,15 +89,19 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
   if(strcmp(read_type, "oneread") == 0){
      MPI_Status Status[6];
     int ** local_global_index_array;
+    int ** global_local_index_array;
     int *nintci_loc_array, *nintcf_loc_array, *nextci_loc_array, *nextcf_loc_array, *length_loc_index_array;
     int local_global_nintcf;
     int length_loc_index;
-    
+    int *nghb_cnt_array;
+    int **nghb_to_rank_array;
+    int **send_cnt_array, **recv_cnt_array;
+    int ***send_lst_array, ***recv_lst_array;
+
     if (0 == myrank){
-      oneread_calc_global_idx(&local_global_index_array, &nintci_loc_array, &nintcf_loc_array, &nextci_loc_array,
+      oneread_calc_global_idx(&local_global_index_array, &global_local_index_array ,&nintci_loc_array, &nintcf_loc_array, &nextci_loc_array,
 			      &nextcf_loc_array, part_type, read_type, nprocs,
-			      *nintci, *nintcf, *nextci,
-			      *nextcf, *lcc, *elems, *points_count);
+			      *nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count, &nghb_cnt_array, &nghb_to_rank_array, &send_cnt_array, &send_lst_array, &recv_cnt_array, &recv_lst_array );
       int dest;
       length_loc_index_array = (int*) malloc(nprocs*sizeof(int));
       

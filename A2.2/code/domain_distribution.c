@@ -320,21 +320,25 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
 
 
 // For oneread case - run on 0 thread and distribute returned data structures in initialization.c
-void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **nintcf_loc, int **nextci_loc,
+void oneread_calc_global_idx(int*** local_global_index, int ***global_local_index, int **nintci_loc, int **nintcf_loc, int **nextci_loc,
 			     int **nextcf_loc, char *part_type, char*read_type, int nprocs,
-			     int nintci, int nintcf, int nextci,
-			     int nextcf, int** lcc, int* elems, int points_count) 
+			     int nintci, int nintcf, int nextci,int nextcf, int** lcc, int* elems, int points_count,
+			     int **nghb_cnt, int ***nghb_to_rank, int *** send_cnt, int **** send_lst, int ***recv_cnt, int ****recv_lst)
 {
-  int i, NC;
+  int i, j,NC;
   int type, dual;
   int rank;
+  int destination;
+  int send_counter = 0;
+  int recv_counter = 0;
   
   *nintci_loc = (int*)malloc( nprocs*sizeof(int) );
   *nintcf_loc = (int*)malloc( nprocs*sizeof(int) );
   *nextci_loc = (int*)malloc( nprocs*sizeof(int) );
   *nextcf_loc = (int*)malloc( nprocs*sizeof(int) );
   
-  *local_global_index = (int**)malloc( nprocs*sizeof(int*) );  
+  *local_global_index = (int**)malloc( nprocs*sizeof(int*) );
+  *global_local_index = (int**)malloc( nprocs*sizeof(int*) );
   determine_type(&type, &dual, part_type); 
   // If the classic mode chosen
   if (type == 0) {
@@ -388,6 +392,7 @@ void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **
       int *boundary_direct_access;
       compute_boundary_start(&boundary_direct_access, &num_terms_ext, nextcf, nextci, (*nintci_loc)[rank], (*nintcf_loc)[rank], lcc);      
       (*local_global_index)[rank] = (int*)malloc( (el_count[rank] + num_terms_ext)*sizeof(int) );
+      (*global_local_index)[rank] = (int*)calloc( (nintcf+1),sizeof(int) );
      
       (*nextci_loc)[rank] = el_count[rank];
       (*nextcf_loc)[rank] = el_count[rank] + num_terms_ext - 1;
@@ -398,9 +403,168 @@ void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **
     
     for (NC=0; NC<ne; NC++) {
 	(*local_global_index)[epart[NC]][i_loc[epart[NC]]] =  NC;
+	(*global_local_index)[epart[NC]][NC] = i_loc[epart[NC]];
 	(i_loc[epart[NC]])++; 
     }
     
+
+
+
+
+
+
+
+
+
+
+    /*neighbouring processor search*/
+    int **neighbour_proc_search;
+        neighbour_proc_search = (int**)malloc(nprocs*sizeof(int*));
+        for (i =0; i< nprocs; i++){
+        	neighbour_proc_search[i] = (int*)calloc(nprocs,sizeof(int*));
+        }
+
+        int global_index_temp;
+        int current_neighbour;
+        int proc_counter =0;
+        int loop_counter = 0;
+        int **nghb_to_rank_reverse;
+        int nghb_to_rank_counter;
+
+        /*memory allocation for the first dimension of array   int ***nghb_to_rank, int *** send_cnt, int **** send_lst, int ***recv_lst, int ****recv_lst*/
+        *nghb_cnt = (int*)malloc(nprocs*sizeof(int));
+        *nghb_to_rank = (int **)malloc(nprocs*sizeof(int*));
+        nghb_to_rank_reverse = (int **)malloc(nprocs*sizeof(int*));
+        *send_cnt = (int **)malloc(nprocs*sizeof(int*));
+        *send_lst = (int ***)malloc(nprocs*sizeof(int**));
+        *recv_cnt = (int **)malloc(nprocs*sizeof(int*));
+        *recv_lst = (int ***)malloc(nprocs*sizeof(int**));
+
+        for(loop_counter = 0; loop_counter < nprocs; loop_counter ++){
+			proc_counter = 0;
+        	for ( i =0; i< el_count[loop_counter]; i++){
+					/*global index for the current local element */
+					global_index_temp = (*local_global_index)[loop_counter][i];
+					for (j =0; j<6; j++){
+						current_neighbour = lcc[global_index_temp][j];
+						if(current_neighbour > nintcf)
+							continue;
+						if(epart[current_neighbour]!=loop_counter){
+							neighbour_proc_search[loop_counter][epart[current_neighbour]] += 1;
+						}
+					}
+			}
+
+        for (i =0; i<nprocs; i++){
+        	if(neighbour_proc_search[loop_counter][i]>0)
+        		proc_counter +=1;
+        }
+
+        (*nghb_cnt)[loop_counter] = proc_counter;
+        (*nghb_to_rank)[loop_counter] = (int*)malloc(((*nghb_cnt)[loop_counter])*sizeof(int));
+        nghb_to_rank_reverse[loop_counter] = (int*)malloc(nprocs*sizeof(int));
+        for (i =0; i<nprocs; i++){
+        	nghb_to_rank_reverse[loop_counter][i]=-1;
+        }
+        nghb_to_rank_counter = 0;
+        for (i =0; i<nprocs; i++){
+            	if(neighbour_proc_search[loop_counter][i]>0){
+            		(*nghb_to_rank)[loop_counter][nghb_to_rank_counter] = i;
+            		nghb_to_rank_reverse[loop_counter][i] = nghb_to_rank_counter;
+            		nghb_to_rank_counter +=1 ;
+            	}
+            }
+
+        /*quasi hash-table for the neighbour search*/
+        /*very expensive!*/
+    	int **send_neighbour_search;
+    	send_neighbour_search = (int**)calloc((*nghb_cnt)[loop_counter],sizeof(int*));
+    	for(i = 0; i < (*nghb_cnt)[loop_counter]; i++)
+    		send_neighbour_search[i] = (int*)calloc((nintcf+1),sizeof(int));
+
+    	int **recv_neighbour_search;
+    	recv_neighbour_search = (int**)calloc((*nghb_cnt)[loop_counter],sizeof(int*));
+    	for(i = 0; i < (*nghb_cnt)[loop_counter]; i++)
+    		recv_neighbour_search[i] = (int*)calloc((nintcf+1),sizeof(int));
+
+    	/*allocate memory for send_cnt and revc_cnt*/
+    		(*send_cnt)[loop_counter] = (int*)calloc((*nghb_cnt)[loop_counter],sizeof(int));
+    		(*recv_cnt)[loop_counter] = (int*)calloc((*nghb_cnt)[loop_counter],sizeof(int));
+
+        /*check total number of neighbours */
+
+        for ( i =0; i< el_count[loop_counter]; i++){
+    		/*global index for the current local element */
+    		global_index_temp = (*local_global_index)[loop_counter][i];
+    		for (j =0; j<6; j++){
+    			current_neighbour = lcc[global_index_temp][j];
+
+    			if(current_neighbour > nintcf)
+    				continue;
+    			if(epart[current_neighbour]!= loop_counter){
+    				send_neighbour_search[nghb_to_rank_reverse[loop_counter][epart[current_neighbour]]][global_index_temp]+= 1;
+    				recv_neighbour_search[nghb_to_rank_reverse[loop_counter][epart[current_neighbour]]][current_neighbour]+= 1;
+    			}
+    		}
+        }
+
+    	destination =0;
+    	/*count the number of neighbors and the destination of sending*/
+    	for(proc_counter = 0; proc_counter < (*nghb_cnt)[loop_counter]; proc_counter++){
+    		for ( i = 0; i<nintcf+1; i++){
+    				if(send_neighbour_search[proc_counter][i] >0)
+    					(*send_cnt)[loop_counter][proc_counter]+=1;
+    				if(recv_neighbour_search[proc_counter][i] >0)
+    					(*recv_cnt)[loop_counter][proc_counter]+=1;
+    		}
+    	}
+
+    	/*memory allocation for nghb_to_rank, send_lst and recv_lst */
+    	if ( ((*send_lst)[loop_counter] = (int**)malloc((*nghb_cnt)[loop_counter] * sizeof(int*))) == NULL ) {
+    		fprintf(stderr, "malloc failed to allocate first dimension of send_lst");
+    	}
+        for ( i = 0; i < (*nghb_cnt)[loop_counter]; i++ ) {
+        	if ( ((*send_lst)[loop_counter][i] = (int *) malloc((*send_cnt)[loop_counter][i] * sizeof(int))) == NULL ) {
+        		fprintf(stderr, "malloc failed to allocate second dimension of send_lst\n");
+        	}
+        }
+
+    	if ( ((*recv_lst)[loop_counter] = (int**)malloc((*nghb_cnt)[loop_counter] * sizeof(int*))) == NULL ) {
+    		fprintf(stderr, "malloc failed to allocate first dimension of recv_lst");
+    	}
+    	for ( i = 0; i < (*nghb_cnt)[loop_counter]; i++ ) {
+    		if ( ((*recv_lst)[loop_counter][i] = (int *) malloc((*recv_cnt)[loop_counter][i] * sizeof(int))) == NULL ) {
+    			fprintf(stderr, "malloc failed to allocate second dimension of recv_lst\n");
+    		}
+    	}
+
+    	for(proc_counter = 0; proc_counter < (*nghb_cnt)[loop_counter]; proc_counter++){
+    		send_counter = 0;
+    		recv_counter = 0;
+    		for ( i = 0; i<nintcf+1; i++){
+    					if(send_neighbour_search[proc_counter][i] >0){
+    						(*send_lst)[loop_counter][proc_counter][send_counter]=i;
+    						send_counter ++;
+    					}
+    					if(recv_neighbour_search[proc_counter][i] >0){
+    						(*recv_lst)[loop_counter][proc_counter][recv_counter]=i;
+    						recv_counter++;
+    					}
+    		}
+    	}
+
+    	for (i =0; i<(*nghb_cnt)[loop_counter]; i++){
+    		free(send_neighbour_search[i]);
+    		free(recv_neighbour_search[i]);
+    	}
+    	free(send_neighbour_search);
+    	free(recv_neighbour_search);
+
+        }//loop_counter
+
+
+
+
     free(i_loc);    
     free(el_count);    
     free(epart);        
