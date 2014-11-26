@@ -26,12 +26,11 @@ void decide_key(char* file_in, char* part_type, char* read_type, int *input_key,
 int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local,int num_internal_cells, int num_cells, int *nintcf, int points_count, double **var, double **cgup, double **oc, double **cnorm);
 
 
-int initialization(char* file_in, char* part_type, char* read_type, int nprocs, int myrank,
-		   int* nintci, int* nintcf, int* nextci,
+int initialization(char* file_in, char* part_type, char* read_type, int nprocs, int myrank, int* nintci, int* nintcf, int* nextci,
 		   int* nextcf, int*** lcc, double** bs, double** be, double** bn, double** bw,
 		   double** bl, double** bh, double** bp, double** su, int* points_count,
 		   int*** points, int** elems, double** var, double** cgup, double** oc,
-		   double** cnorm, int** local_global_index int** global_local_index,
+		   double** cnorm, int** local_global_index, int** global_local_index,
                    int *nghb_cnt, int** nghb_to_rank, int** send_cnt, int*** send_lst, 
                    int **recv_cnt, int*** recv_lst) 
 {
@@ -337,8 +336,8 @@ if ( (*points = (int **) calloc((*points_count), sizeof(int*))) == NULL ) {
   
   if(strcmp(read_type, "allread") == 0){
     
-    allread_calc_global_idx( &(*local_global_index), &(*global_local_index), &Nintci_loc, &Nintcf_loc, &Nextci_loc, &Nextcf_loc, part_type, read_type, nprocs, myrank,*nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count,&(*nghb_cnt), &(*nghb_to_rank), &(*send_cnt), &(*send_lst), 
-                   &(*recv_cnt), &(*recv_lst));     
+    allread_calc_global_idx( &(*local_global_index), &(*global_local_index), &Nintci_loc, &Nintcf_loc, &Nextci_loc, &Nextcf_loc, part_type, read_type, nprocs, myrank,*nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count,&(*nghb_cnt), &(*nghb_to_rank), &*send_cnt, &*send_lst,
+                   &*recv_cnt, &*recv_lst);
     
     num_cells = Nextcf_loc - Nintci_loc +1;
     num_internal_cells = Nintcf_loc - Nintci_loc +1;
