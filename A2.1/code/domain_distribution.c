@@ -11,6 +11,7 @@
 #include <metis.h>
 #include <string.h>
 
+
 // Start counting the external cells
 // If an internal cell belonging to the particular process refers to an external cell, increase its counter
 void compute_boundary_start(int** boundary_direct_access, int *num_terms_ext, int nextcf, int nextci, int nintci_loc, int nintcf_loc, int **lcc)  {
