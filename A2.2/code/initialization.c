@@ -26,12 +26,11 @@ void decide_key(char* file_in, char* part_type, char* read_type, int *input_key,
 int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local,int num_internal_cells, int num_cells, int *nintcf, int points_count, double **var, double **cgup, double **oc, double **cnorm);
 
 
-int initialization(char* file_in, char* part_type, char* read_type, int nprocs, int myrank,
-		   int* nintci, int* nintcf, int* nextci,
+int initialization(char* file_in, char* part_type, char* read_type, int nprocs, int myrank, int* nintci, int* nintcf, int* nextci,
 		   int* nextcf, int*** lcc, double** bs, double** be, double** bn, double** bw,
 		   double** bl, double** bh, double** bp, double** su, int* points_count,
 		   int*** points, int** elems, double** var, double** cgup, double** oc,
-		   double** cnorm, int** local_global_index int** global_local_index,
+		   double** cnorm, int** local_global_index, int** global_local_index,
                    int *nghb_cnt, int** nghb_to_rank, int** send_cnt, int*** send_lst, 
                    int **recv_cnt, int*** recv_lst) 
 {
@@ -90,15 +89,19 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
   if(strcmp(read_type, "oneread") == 0){
      MPI_Status Status[6];
     int ** local_global_index_array;
+    int ** global_local_index_array;
     int *nintci_loc_array, *nintcf_loc_array, *nextci_loc_array, *nextcf_loc_array, *length_loc_index_array;
     int local_global_nintcf;
     int length_loc_index;
-    
+    int *nghb_cnt_array;
+    int **nghb_to_rank_array;
+    int **send_cnt_array, **recv_cnt_array;
+    int ***send_lst_array, ***recv_lst_array;
+
     if (0 == myrank){
-      oneread_calc_global_idx(&local_global_index_array, &nintci_loc_array, &nintcf_loc_array, &nextci_loc_array,
+      oneread_calc_global_idx(&local_global_index_array, &global_local_index_array ,&nintci_loc_array, &nintcf_loc_array, &nextci_loc_array,
 			      &nextcf_loc_array, part_type, read_type, nprocs,
-			      *nintci, *nintcf, *nextci,
-			      *nextcf, *lcc, *elems, *points_count);
+			      *nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count, &nghb_cnt_array, &nghb_to_rank_array, &send_cnt_array, &send_lst_array, &recv_cnt_array, &recv_lst_array );
       int dest;
       length_loc_index_array = (int*) malloc(nprocs*sizeof(int));
       
@@ -337,7 +340,8 @@ if ( (*points = (int **) calloc((*points_count), sizeof(int*))) == NULL ) {
   
   if(strcmp(read_type, "allread") == 0){
     
-    allread_calc_global_idx( &(*local_global_index), &Nintci_loc, &Nintcf_loc, &Nextci_loc, &Nextcf_loc, part_type, read_type, nprocs, myrank,*nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count);     
+    allread_calc_global_idx( &(*local_global_index), &(*global_local_index), &Nintci_loc, &Nintcf_loc, &Nextci_loc, &Nextcf_loc, part_type, read_type, nprocs, myrank,*nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count,&(*nghb_cnt), &(*nghb_to_rank), &*send_cnt, &*send_lst,
+                   &*recv_cnt, &*recv_lst);
     
     num_cells = Nextcf_loc - Nintci_loc +1;
     num_internal_cells = Nintcf_loc - Nintci_loc +1;
@@ -516,6 +520,8 @@ int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, dou
   *var = (double*) calloc(sizeof(double), (num_cells));
   *cgup = (double*) calloc(sizeof(double), (num_cells));
   *cnorm = (double*) calloc(sizeof(double), (num_internal_cells));
+
+  return 0;
 }//memory allocation
 
 void write_vtk(char *file_in, char *scalars_name, int *local_global_index, int num_internal_cells, double *scalars, char *part_type, int myrank) 

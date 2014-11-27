@@ -10,14 +10,14 @@
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
-void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nintcf_loc, int *nextci_loc,
-                   int *nextcf_loc, char *part_type, char*read_type, int nprocs, int myrank,
-                   int nintci, int nintcf, int nextci,
-                   int nextcf, int** lcc, int* elems, int points_count);
+void allread_calc_global_idx(int** local_global_index, int **global_local_index, int *nintci_loc, int *nintcf_loc, int *nextci_loc,
+			     int *nextcf_loc, char *part_type, char*read_type, int nprocs, int myrank,
+			     int nintci, int nintcf, int nextci,
+			     int nextcf, int** lcc, int* elems, int points_count, int *nghb_cnt, int** nghb_to_rank, int** send_cnt, int *** send_lst, int **recv_cnt, int *** recv_lst );
 
-void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **nintcf_loc, int **nextci_loc,
+void oneread_calc_global_idx(int*** local_global_index, int ***global_local_index, int **nintci_loc, int **nintcf_loc, int **nextci_loc,
 			     int **nextcf_loc, char *part_type, char*read_type, int nprocs,
 			     int nintci, int nintcf, int nextci,
-			     int nextcf, int** lcc, int* elems, int points_count);
+			     int nextcf, int** lcc, int* elems, int points_count, int **nghb_cnt, int ***nghb_to_rank, int *** send_cnt, int **** send_lst, int ***recv_cnt, int ****recv_lst);
 
 #endif /* DOMAIN_DISTRIBUTION_H_ */
