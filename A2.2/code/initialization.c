@@ -21,6 +21,8 @@
 #endif
 void write_vtk(char *file_in, char *scalars_name, int *local_global_index, int num_internal_cells, double *scalars, char *part_type, int myrank) ;
 
+void write_send_recv_vtk(char *file_in, int *local_global_index, int num_internal_cells, char *part_type, int myrank, int *nghb_cnt, int** send_cnt, int *** send_lst, int **recv_cnt, int *** recv_lst, int num_cells);
+
 void decide_key(char* file_in, char* part_type, char* read_type, int *input_key, int *part_key, int *read_key);
 
 int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local,int num_internal_cells, int num_cells, int *nintcf, int points_count, double **var, double **cgup, double **oc, double **cnorm);
@@ -537,16 +539,18 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 	write_pstats_partition(input_key, part_key, myrank, num_internal_cells, (Nextcf_loc - Nextci_loc +1) );
 #endif
     
-    double *ranks = (double*) calloc(num_internal_cells, sizeof(double));
-    for (i=0; i<num_internal_cells; i++)
-    {
-      ranks[i] = 1.0;
-    }
-    write_vtk(file_in, "ranks", *local_global_index, num_internal_cells, ranks, part_type, myrank);
+//     double *ranks = (double*) calloc(num_internal_cells, sizeof(double));
+//     for (i=0; i<num_internal_cells; i++)
+//     {
+//       ranks[i] = 1.0;
+//     }
+//     write_vtk(file_in, "ranks", *local_global_index, num_internal_cells, ranks, part_type, myrank);
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
     
-    free(ranks);
+    write_send_recv_vtk(file_in, *local_global_index, num_internal_cells, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, ((*nintcf) - (*nintci)) );
+    
+//    free(ranks);
 
     free(su_local);
     free(bp_local);
@@ -647,6 +651,59 @@ int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, dou
 
   return 0;
 }//memory allocation
+
+void write_send_recv_vtk(char *file_in, int *local_global_index, int num_internal_cells, char *part_type, int myrank, int *nghb_cnt, int** send_cnt, int *** send_lst, int **recv_cnt, int *** recv_lst, int num_cells) 
+{
+  int i, j;
+  char file_vtk_out_name [100], buf[10];
+  strcpy(file_vtk_out_name, file_in);
+  // Finding ".geo.bin" and extracting just the needed part
+  char * pch;
+  pch = strstr (file_vtk_out_name,".geo.bin");
+  strncpy (pch,".",8);
+  strcat(file_vtk_out_name, "send");
+  strcat(file_vtk_out_name, ".");
+  strcat(file_vtk_out_name, part_type);
+  strcat(file_vtk_out_name, ".rank");
+  snprintf (buf, 10, "%d.vtk", myrank);
+  strcat(file_vtk_out_name, buf);
+  printf("\n%s\n", file_vtk_out_name);
+  
+  double *send, *recv;
+  send = (double*) calloc(sizeof(double), num_cells);
+  recv = (double*) calloc(sizeof(double), num_cells);
+  
+  for (i=0; i<(*nghb_cnt); i++) {
+    for (j=0; j<(*send_cnt)[i]; j++) {
+      send[(*send_lst)[i][j]] = (double) i;
+    }
+  }
+  
+  for (i=0; i<(*nghb_cnt); i++) {
+    for (j=0; j<(*send_cnt)[i]; j++) {
+      recv[(*recv_lst)[i][j]] = (double) i;
+    }
+  }
+  
+  test_distribution(file_in, file_vtk_out_name, local_global_index, num_internal_cells, send);
+  
+  strcpy(file_vtk_out_name, file_in);
+  pch = strstr (file_vtk_out_name,".geo.bin");
+  strncpy (pch,".",8);
+  strcat(file_vtk_out_name, "recv");
+  strcat(file_vtk_out_name, ".");
+  strcat(file_vtk_out_name, part_type);
+  strcat(file_vtk_out_name, ".rank");
+  snprintf (buf, 10, "%d.vtk", myrank);
+  strcat(file_vtk_out_name, buf);
+  printf("\n%s\n", file_vtk_out_name);
+  
+  test_distribution(file_in, file_vtk_out_name, local_global_index, num_internal_cells, recv);
+  
+  free(send);
+  free(recv);
+  
+}//write_vtk
 
 void write_vtk(char *file_in, char *scalars_name, int *local_global_index, int num_internal_cells, double *scalars, char *part_type, int myrank) 
 {
