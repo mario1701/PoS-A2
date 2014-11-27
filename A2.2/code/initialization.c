@@ -99,6 +99,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     int ***send_lst_array, ***recv_lst_array;
 
     if (0 == myrank){
+
       oneread_calc_global_idx(&local_global_index_array, &global_local_index_array ,&nintci_loc_array, &nintcf_loc_array, &nextci_loc_array,
 			      &nextcf_loc_array, part_type, read_type, nprocs,
 			      *nintci, *nintcf, *nextci, *nextcf, *lcc, *elems, *points_count, &nghb_cnt_array, &nghb_to_rank_array, &send_cnt_array, &send_lst_array, &recv_cnt_array, &recv_lst_array );
@@ -121,7 +122,8 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
       for (i=0; i<length_loc_index; i++) {
 	(*local_global_index)[i] = local_global_index_array[0][i];
       }
-    
+
+    /*special treatment for processor 0 ended*/
       for (dest = 1; dest<nprocs; dest++){
 	MPI_Send(&(length_loc_index_array[dest]), 1, MPI_INT, dest, 0, MPI_COMM_WORLD);
 	MPI_Send(&(nintci_loc_array[dest]), 1, MPI_INT, dest, 1, MPI_COMM_WORLD);
@@ -131,6 +133,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 	MPI_Send(local_global_index_array[dest], length_loc_index_array[dest], MPI_INT, dest, 5, MPI_COMM_WORLD);
 	MPI_Send(nintcf, 1, MPI_INT, dest, 6, MPI_COMM_WORLD);
 	MPI_Send(points_count, 1, MPI_INT, dest, 7, MPI_COMM_WORLD);
+
       }
     }//if (0 == myrank)
     
@@ -144,6 +147,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
       MPI_Recv(&Nintcf_loc,1,MPI_INT,0,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv(&Nextci_loc,1,MPI_INT,0,3,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv(&Nextcf_loc,1,MPI_INT,0,4,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+
       MPI_Recv((*local_global_index),length_loc_index,MPI_INT,0,5,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv(&local_global_nintcf, 1, MPI_INT, 0, 6, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       MPI_Recv(&(*points_count), 1, MPI_INT, 0, 7, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
@@ -203,7 +207,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 	free(su_local); 
 	free(*var);
 	free(*cgup);
-	free(*oc);
+	//free(*oc);  //not yet used!!!!!
 	free(*cnorm);
       } //for (dest = 1; dest<nprocs; dest++)   
     }//if (myrank==0)
@@ -228,6 +232,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
       }
     }//if (myrank>0)
    
+    /*special treatment for processor 0, since here we cannot use MPI_Send*/
     if (myrank==0){
       int dest = 0;
       num_cells = Nextcf_loc - Nintci_loc +1;
@@ -286,6 +291,98 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
       free(nextcf_loc_array); 
     }//if (myrank==0)
 
+    /*data transfer part for the milestone A2.2*/
+    /*for nghb_cnt*/
+    if(0 == myrank){
+    	int dest = 0;
+    	*nghb_cnt = nghb_cnt_array[0];
+    	for (dest = 1; dest < nprocs; dest++ ){
+    		MPI_Send(&nghb_cnt_array[dest],1,MPI_INT, dest, 8, MPI_COMM_WORLD);
+    	}
+    }
+
+    if (myrank > 0){
+    	MPI_Recv(&(*nghb_cnt), 1, MPI_INT, 0, 8, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+    }
+
+    /*for nghb_to_rank, send_cnt, recv_cnt*/
+    if(0 ==myrank){
+    	*nghb_to_rank = (int*)malloc((*nghb_cnt)*sizeof(int));
+    	*send_cnt  = (int*)malloc((*nghb_cnt)*sizeof(int));
+    	*recv_cnt  = (int*)malloc((*nghb_cnt)*sizeof(int));
+    	for(i = 0; i< *nghb_cnt; i++){
+    		(*nghb_to_rank)[i] = nghb_to_rank_array[0][i];
+    		(*send_cnt)[i] = send_cnt_array[0][i];
+    		(*recv_cnt)[i] = recv_cnt_array[0][i];
+    	}
+    	int dest = 0;
+    	for (dest = 1; dest < nprocs; dest ++){
+    	MPI_Send(&(nghb_to_rank_array[dest][0]),(*nghb_cnt),MPI_INT, dest, 9, MPI_COMM_WORLD);
+    	MPI_Send(&(send_cnt_array[dest][0]),(*nghb_cnt),MPI_INT, dest, 10, MPI_COMM_WORLD);
+    	MPI_Send(&(recv_cnt_array[dest][0]),(*nghb_cnt),MPI_INT, dest, 11, MPI_COMM_WORLD);
+    	}
+    }
+
+    if(myrank > 0){
+    	*nghb_to_rank = (int*)malloc((*nghb_cnt)*sizeof(int));
+    	*send_cnt  = (int*)malloc((*nghb_cnt)*sizeof(int));
+    	*recv_cnt  = (int*)malloc((*nghb_cnt)*sizeof(int));
+    	MPI_Recv(&((*nghb_to_rank)[0]), (*nghb_cnt), MPI_INT, 0, 9, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+    	MPI_Recv(&((*send_cnt)[0]), (*nghb_cnt), MPI_INT, 0, 10, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+    	MPI_Recv(&((*recv_cnt)[0]), (*nghb_cnt), MPI_INT, 0, 11, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+    }
+
+    /*for send_lst and recv_lst*/
+    if (0 == myrank){
+    	*send_lst = (int **)malloc((*nghb_cnt)*sizeof(int*));
+    	*recv_lst = (int **)malloc((*nghb_cnt)*sizeof(int*));
+
+    	for (i = 0; i< (*nghb_cnt); i++){
+    		(*send_lst)[i] = (int*)malloc((*send_cnt)[i] * sizeof(int));
+    		(*recv_lst)[i] = (int*)malloc((*recv_cnt)[i] * sizeof(int));
+    	}
+
+    	for(i = 0; i< (*nghb_cnt); i++){
+    		for (j = 0; j < (*send_cnt)[i]; j++){
+    			(*send_lst)[i][j] = send_lst_array[0][i][j];
+    			(*recv_lst)[i][j] = recv_lst_array[0][i][j];
+    		}
+
+    	}
+    	int dest = 0;
+    	for (dest= 1; dest< nprocs; dest++){
+    		for(j = 0; j< nghb_cnt_array[dest]; j++){
+    			MPI_Send(&(send_lst_array[dest][j][0]),((send_cnt_array)[dest][j]),MPI_INT, dest, j+20, MPI_COMM_WORLD);
+    		}
+    	}
+
+    	for (dest= 1; dest< nprocs; dest++){
+    	    		for(j = 0; j< nghb_cnt_array[dest]; j++){
+    	    			MPI_Send(&(recv_lst_array[dest][j][0]),((recv_cnt_array)[dest][j]),MPI_INT, dest, j+40, MPI_COMM_WORLD);
+    	    		}
+    	    	}
+    }
+
+    if(myrank >0){
+    	*send_lst = (int **)malloc((*nghb_cnt)*sizeof(int*));
+    	*recv_lst = (int **)malloc((*nghb_cnt)*sizeof(int*));
+
+    	for (i = 0; i< (*nghb_cnt); i++){
+    	    		(*send_lst)[i] = (int*)malloc((*send_cnt)[i] * sizeof(int));
+    	    		(*recv_lst)[i] = (int*)malloc((*recv_cnt)[i] * sizeof(int));
+    	    	}
+
+    	for(j = 0; j< (*nghb_cnt); j++){
+    	    MPI_Recv(&((*send_lst)[j][0]),(*send_cnt)[j],MPI_INT, 0, j+20, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+
+    	}
+
+    	for(j = 0; j< (*nghb_cnt); j++){
+
+    	    	    MPI_Recv(&((*recv_lst)[j][0]),(*recv_cnt)[j],MPI_INT, 0, j+40, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+    	    	}
+    }
+
     // initialize the arrays
     for ( i = 0; i <= 10; i++ ) {
       (*cnorm)[i] = 1.0;
@@ -316,23 +413,50 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
 
+    /*free XXX_array*/
+    if(0 == myrank){
+    	int proc = 0;
+    	for(proc = 0; proc < nprocs; proc ++){
+    		for(i = 0 ; i < (nghb_cnt_array)[proc]; i++){
+    			free(send_lst_array[proc][i]);
+    			free(recv_lst_array[proc][i]);
+    		}
+    		free(send_lst_array[proc]);
+    		free(recv_lst_array[proc]);
+    	}
+    	free(send_lst_array);
+    	free(recv_lst_array);
+
+    	for(proc = 0; proc < nprocs; proc ++){
+    		free(nghb_to_rank_array[proc]);
+    		free(send_cnt_array[proc]);
+    		free(recv_cnt_array[proc]);
+    	}
+    	free(nghb_to_rank_array);
+    	free(send_cnt_array);
+    	free(recv_cnt_array);
+
+    	free(nghb_cnt_array);
+    }
+
 /*allocate memory for elems and points for processor >0 */
-if ( (*elems = (int*) malloc((Nintcf_loc + 1) * 8 * sizeof(int))) == NULL ) {
-        fprintf(stderr, "malloc failed to allocate elems");
-        return -1;
-    }
-if ( (*points = (int **) calloc((*points_count), sizeof(int*))) == NULL ) {
-        fprintf(stderr, "malloc() POINTS 1st dim. failed\n");
-        return -1;
-    }
+    if(myrank>0){
+	if ( (*elems = (int*) malloc((Nintcf_loc + 1) * 8 * sizeof(int))) == NULL ) {
+			fprintf(stderr, "malloc failed to allocate elems");
+			return -1;
+		}
+	if ( (*points = (int **) calloc((*points_count), sizeof(int*))) == NULL ) {
+			fprintf(stderr, "malloc() POINTS 1st dim. failed\n");
+			return -1;
+		}
 
-    for ( i = 0; i < (*points_count); i++ ) {
-        if ( ((*points)[i] = (int *) calloc(3, sizeof(int))) == NULL ) {
-            fprintf(stderr, "malloc() POINTS 2nd dim. failed\n");
-            return -1;
-        }
+		for ( i = 0; i < (*points_count); i++ ) {
+			if ( ((*points)[i] = (int *) calloc(3, sizeof(int))) == NULL ) {
+				fprintf(stderr, "malloc() POINTS 2nd dim. failed\n");
+				return -1;
+			}
+		}
     }
-
 
   }//if(strcmp(read_type, "oneread") == 0)
   
