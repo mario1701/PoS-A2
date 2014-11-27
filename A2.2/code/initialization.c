@@ -11,10 +11,12 @@
 #include <mpi.h>
 #include <stdio.h>
 #include "util_read_files.h"
+#include "util_write_files.h"
 #include <string.h>
 #include "initialization.h"
 #include <malloc.h>
 #include "test_functions.h"
+#include "domain_distribution.h"
 
 #ifdef PAPI
 #include <papi.h>
@@ -414,6 +416,8 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
+    
+    write_send_recv_vtk(file_in, *local_global_index, num_internal_cells, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, ((*nintcf) - (*nintci)) );
 
     /*free XXX_array*/
     if(0 == myrank){
@@ -661,7 +665,7 @@ void write_send_recv_vtk(char *file_in, int *local_global_index, int num_interna
   char * pch;
   pch = strstr (file_vtk_out_name,".geo.bin");
   strncpy (pch,".",8);
-  strcat(file_vtk_out_name, "send");
+  strcat(file_vtk_out_name, "SENDandRECEIVE");
   strcat(file_vtk_out_name, ".");
   strcat(file_vtk_out_name, part_type);
   strcat(file_vtk_out_name, ".rank");
@@ -685,20 +689,23 @@ void write_send_recv_vtk(char *file_in, int *local_global_index, int num_interna
     }
   }
   
-  test_distribution(file_in, file_vtk_out_name, local_global_index, num_internal_cells, send);
+      int nintci_m, nintcf_m;  
+    int nextci_m, nextcf_m;
+    int **lcc_m; 
+    double *bs_m, *be_m, *bn_m, *bw_m, *bh_m, *bl_m;
+    double *bp_m;  
+    double *su_m;  
+    int points_count_m;  
+    int** points_m;  
+    int* elems_m; 
   
-  strcpy(file_vtk_out_name, file_in);
-  pch = strstr (file_vtk_out_name,".geo.bin");
-  strncpy (pch,".",8);
-  strcat(file_vtk_out_name, "recv");
-  strcat(file_vtk_out_name, ".");
-  strcat(file_vtk_out_name, part_type);
-  strcat(file_vtk_out_name, ".rank");
-  snprintf (buf, 10, "%d.vtk", myrank);
-  strcat(file_vtk_out_name, buf);
-  printf("\n%s\n", file_vtk_out_name);
-  
-  test_distribution(file_in, file_vtk_out_name, local_global_index, num_internal_cells, recv);
+    int f_status = read_binary_geo( file_in, &nintci_m, &nintcf_m, &nextci_m,
+            &nextcf_m, &lcc_m, &bs_m, &be_m, &bn_m, &bw_m, &bl_m, &bh_m, &bp_m,
+            &su_m, &points_count_m, &points_m, &elems_m );
+      
+    vtk_write_unstr_grid_header( file_in, file_vtk_out_name, 0, num_cells, points_count_m, points_m, elems_m);
+    vtk_append_double( file_vtk_out_name, "SEND", 0, num_cells, send );
+    vtk_append_double( file_vtk_out_name, "RECEIVE", 0, num_cells, recv );
   
   free(send);
   free(recv);
