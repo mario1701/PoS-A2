@@ -14,6 +14,8 @@
 #include <string.h>
 #include "initialization.h"
 #include <malloc.h>
+#include "test_functions.h"
+#include "domain_distribution.h"
 
 #ifdef PAPI
 #include <papi.h>
