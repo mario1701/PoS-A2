@@ -116,12 +116,16 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
   // Assume 0 value of nintci
   *nintci_loc = 0;
   int i, j, NC;
-  int type, dual;  
+  int type, dual;
   determine_type(&type, &dual, part_type);  
  
   // If the classic mode chosen
   if (type == 0) {
-    int start_int, stop_int, quotient_int, remainder_int, num_terms_int, num_terms_ext;    
+    int start_int, stop_int, quotient_int, remainder_int, num_terms_int, num_terms_ext;
+    int ne = (nintcf - nintci + 1);
+    int *epart;
+    epart = (int*) malloc( (ne)*sizeof(int) );
+    
     // Calculation of the indices of the int cells for each process    
     num_terms_int = nintcf - nintci + 1;
     
@@ -132,7 +136,7 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
     stop_int = (myrank + 1)*quotient_int  + MIN(myrank+1, remainder_int );
     
     *nintcf_loc = stop_int - start_int - 1;
-    *nextci_loc = stop_int - start_int;   
+    *nextci_loc = stop_int - start_int;        
  
     // Calculation of the number of external cells belonging to a process
     int *boundary_direct_access;
@@ -144,6 +148,24 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
       (*local_global_index)[i] = start_int + i;
     }
     compute_boundary_stop(&boundary_direct_access, *local_global_index, nextcf, nextci, *nextci_loc, *nextcf_loc, lcc);
+    
+    
+    // Calculation of the epart for classic
+    int rank;
+
+    for (rank=0; rank<nprocs; rank++) {   
+      start_int = (rank + 0)*quotient_int  + MIN(rank , remainder_int );
+      stop_int = (rank + 1)*quotient_int  + MIN(rank+1, remainder_int );
+      for (i=start_int; i<stop_int; i++) {
+	epart[i] = rank;
+      }
+    }
+    
+    // TODO: Put some code...
+    
+    free(epart);
+      
+    
   } //if (type == 0)
   
   // If the metis mode chosen
@@ -331,6 +353,9 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
   int destination;
   int send_counter = 0;
   int recv_counter = 0;
+  int ne = (nintcf - nintci + 1);
+  int *epart;
+  epart = (int*) malloc( (ne)*sizeof(int) );
   
   *nintci_loc = (int*)malloc( nprocs*sizeof(int) );
   *nintcf_loc = (int*)malloc( nprocs*sizeof(int) );
@@ -355,6 +380,14 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
       stop_int = (rank + 1)*quotient_int  + MIN(rank+1, remainder_int );     
       (*nintcf_loc)[rank] = stop_int - start_int - 1;
       (*nextci_loc)[rank] = stop_int - start_int;
+      
+      // Calculation of the epart for classic
+
+      for (i=start_int; i<stop_int; i++) {
+	epart[i] = rank;
+      }
+    
+      
       // Calculation of the number of external cells belonging to a process
       int *boundary_direct_access;
       compute_boundary_start(&boundary_direct_access, &num_terms_ext, nextcf, nextci, (*nintci_loc)[rank], (*nintcf_loc)[rank], lcc);
@@ -365,7 +398,12 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
 	(*local_global_index)[rank][i] = start_int + i;	
       }      
       compute_boundary_stop(&boundary_direct_access, (*local_global_index)[rank], nextcf, nextci, (*nextci_loc)[rank], (*nextcf_loc)[rank], lcc);
-    }    
+    }
+    
+    // TODO: Put some code...
+    
+    free(epart);
+    
   }//if (type == 0)  
 
 // If the metis mode chosen
