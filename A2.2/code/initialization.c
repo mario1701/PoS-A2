@@ -321,9 +321,9 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     	}
     	int dest = 0;
     	for (dest = 1; dest < nprocs; dest ++){
-    	MPI_Send(&(nghb_to_rank_array[dest][0]),(*nghb_cnt),MPI_INT, dest, 9, MPI_COMM_WORLD);
-    	MPI_Send(&(send_cnt_array[dest][0]),(*nghb_cnt),MPI_INT, dest, 10, MPI_COMM_WORLD);
-    	MPI_Send(&(recv_cnt_array[dest][0]),(*nghb_cnt),MPI_INT, dest, 11, MPI_COMM_WORLD);
+    	MPI_Send(&(nghb_to_rank_array[dest][0]),(nghb_cnt_array)[dest],MPI_INT, dest, 9, MPI_COMM_WORLD);
+    	MPI_Send(&(send_cnt_array[dest][0]),(nghb_cnt_array)[dest],MPI_INT, dest, 10, MPI_COMM_WORLD);
+    	MPI_Send(&(recv_cnt_array[dest][0]),(nghb_cnt_array)[dest],MPI_INT, dest, 11, MPI_COMM_WORLD);
     	}
     }
 
@@ -349,10 +349,15 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     	for(i = 0; i< (*nghb_cnt); i++){
     		for (j = 0; j < (*send_cnt)[i]; j++){
     			(*send_lst)[i][j] = send_lst_array[0][i][j];
-    			(*recv_lst)[i][j] = recv_lst_array[0][i][j];
     		}
-
     	}
+
+    	for(i = 0; i< (*nghb_cnt); i++){
+    	    		for (j = 0; j < (*recv_cnt)[i]; j++){
+    	    			(*recv_lst)[i][j] = recv_lst_array[0][i][j];
+    	    		}
+    	}
+
     	int dest = 0;
     	for (dest= 1; dest< nprocs; dest++){
     		for(j = 0; j< nghb_cnt_array[dest]; j++){
@@ -684,7 +689,7 @@ void write_send_recv_vtk(char *file_in, int *local_global_index, int num_interna
   }
   
   for (i=0; i<(*nghb_cnt); i++) {
-    for (j=0; j<(*send_cnt)[i]; j++) {
+    for (j=0; j<(*recv_cnt)[i]; j++) {
       recv[(*recv_lst)[i][j]] = (double) i;
     }
   }

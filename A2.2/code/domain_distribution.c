@@ -421,7 +421,7 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
     int **neighbour_proc_search;
         neighbour_proc_search = (int**)malloc(nprocs*sizeof(int*));
         for (i =0; i< nprocs; i++){
-        	neighbour_proc_search[i] = (int*)calloc(nprocs,sizeof(int*));
+        	neighbour_proc_search[i] = (int*)calloc(nprocs,sizeof(int));
         }
 
         int global_index_temp;
@@ -454,7 +454,8 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
 						}
 					}
 			}
-
+        }
+        	for(loop_counter = 0; loop_counter < nprocs; loop_counter ++){
         for (i =0; i<nprocs; i++){
         	if(neighbour_proc_search[loop_counter][i]>0)
         		proc_counter +=1;
