@@ -436,7 +436,7 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
     
     // TODO: Put some code...
     
-    free(epart);
+    free(epart);//be careful!!!
     
   }//if (type == 0)  
 
@@ -512,20 +512,32 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
         *recv_cnt = (int **)malloc(nprocs*sizeof(int*));
         *recv_lst = (int ***)malloc(nprocs*sizeof(int**));
 
-        for(loop_counter = 0; loop_counter < nprocs; loop_counter ++){
-        	for ( i =0; i< el_count[loop_counter]; i++){
-					/*global index for the current local element */
-					global_index_temp = (*local_global_index)[loop_counter][i];
-					for (j =0; j<6; j++){
-						current_neighbour = lcc[global_index_temp][j];
-						if(current_neighbour > nintcf)
-							continue;
-						if(epart[current_neighbour]!=loop_counter){
-							neighbour_proc_search[loop_counter][epart[current_neighbour]] += 1;
-						}
-					}
-			}
+
+
+        for(NC=0; NC< ne; NC++){
+        	for(j = 0; j<6; j++){
+        		current_neighbour = lcc[NC][j];
+        		if(current_neighbour > nintcf)
+        						continue;
+        		if(epart[current_neighbour]!=epart[NC]){
+        			neighbour_proc_search[epart[NC]][epart[current_neighbour]] += 1;
+        		}
+        	}
         }
+      //  for(loop_counter = 0; loop_counter < nprocs; loop_counter ++){
+        //	for ( i =0; i< el_count[loop_counter]; i++){
+			//		/*global index for the current local element */
+				//	global_index_temp = (*local_global_index)[loop_counter][i];
+					//for (j =0; j<6; j++){
+						//current_neighbour = lcc[global_index_temp][j];
+						//if(current_neighbour > nintcf)
+				//			continue;
+					//	if(epart[current_neighbour]!=loop_counter){
+						//	neighbour_proc_search[loop_counter][epart[current_neighbour]] += 1;
+	//					}
+		//			}
+			//}
+//        }
 
         for(loop_counter = 0; loop_counter < nprocs; loop_counter ++){
         		 proc_counter = 0;
