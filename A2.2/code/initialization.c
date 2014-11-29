@@ -719,9 +719,9 @@ void write_send_recv_vtk(char *file_in, int *local_global_index, int** nghb_to_r
             &nextcf_m, &lcc_m, &bs_m, &be_m, &bn_m, &bw_m, &bl_m, &bh_m, &bp_m,
             &su_m, &points_count_m, &points_m, &elems_m );
       
-    vtk_write_unstr_grid_header( file_in, file_vtk_out_name, 0, num_cells, points_count_m, points_m, elems_m);
-    vtk_append_integer( file_vtk_out_name, "SEND", 0, num_cells, send );
-    vtk_append_integer( file_vtk_out_name, "RECEIVE", 0, num_cells, recv );
+    vtk_write_unstr_grid_header( file_in, file_vtk_out_name, 0, num_cells-1, points_count_m, points_m, elems_m);
+    vtk_append_integer( file_vtk_out_name, "SEND", 0, num_cells-1, send );
+    vtk_append_integer( file_vtk_out_name, "RECEIVE", 0, num_cells-1, recv );
   
   free(send);
   free(recv);
