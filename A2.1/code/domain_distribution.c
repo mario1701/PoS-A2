@@ -66,47 +66,76 @@ void determine_type(int *type, int *dual, char *part_type) {
 }
 
 // Initialize METIS and devide the domain
-void METIS_Partitioning(idx_t **epart, idx_t *ne, int nprocs, int *elems, int nintci, int nintcf, int points_count, int dual){
+void METIS_Partitioning(int **epart_ret, int *ne_ret, int nprocs, int *elems, int nintci, int nintcf, int points_count, int dual){
     idx_t options[METIS_NOPTIONS];
     METIS_SetDefaultOptions(options);
-    
+
     int NC, i;
-    idx_t nn, ncommon, objval, nparts ;
-    *ne = (nintcf - nintci + 1);
-    nn = points_count; 
+     idx_t ncommon, nparts;
+	idx_t *objval;
+idx_t ne, nn;
+
+ 		ne = nintcf - nintci + 1;
+             nn = points_count;
+             ncommon = 4;
+            nparts = nprocs;
+
+ 	idx_t *epart;
     
-    idx_t *eind = (idx_t*) malloc( 8*(*ne)*sizeof(idx_t) );
-    idx_t *eptr = (idx_t*) malloc( ((*ne)+1)*sizeof(idx_t) );
-    
-    for (NC=0; NC<(*ne)+1; NC++) {
+
+
+      idx_t *eind;
+      idx_t *eptr;
+
+//Unbelieveable thing happening - order matters!
+
+// eind = (idx_t *) calloc(sizeof(idx_t), (ne * 8));              
+// eptr = (idx_t *) calloc(sizeof(idx_t), (ne + 1));
+               
+ 	eptr = (idx_t *) calloc(sizeof(idx_t), (ne + 1));
+ 	eind = (idx_t *) calloc(sizeof(idx_t), (8*ne));
+
+
+
+    for (NC=0; NC<(ne+1); NC++) {
       eptr[NC] = 8*NC;
     }
-    
-    for (i=0; i<8*(*ne); i++) {
+
+    for (i=0; i<(8*ne); i++) {
       eind[i] = elems[i];
     }
-    
-    idx_t *npart;
-    
-    *epart = (idx_t*) malloc( (*ne)*sizeof(idx_t) );
-    npart = (idx_t*) malloc( nn*sizeof(idx_t) );
-    
-    ncommon = 4;
-    nparts = nprocs;
 
-    if (dual == 1)
-    {
-      METIS_PartMeshDual(&(*ne), &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, &objval, *epart, npart);
-    }
-    else if (dual == 0)
-    {
-      METIS_PartMeshNodal(&(*ne), &nn, eptr, eind, NULL, NULL, &nparts, NULL, NULL, &objval, *epart, npart);
-    }
+      idx_t *npart;
+
+      epart = (idx_t *) calloc(sizeof(idx_t), ne);
+
+      npart = (idx_t *) calloc(sizeof(idx_t), nn);
+
+objval = (idx_t *) calloc(sizeof(idx_t), 1);
+
+     if (dual == 1)
+     {
+       METIS_PartMeshDual(&ne, &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, objval, epart, npart);
+     }
+     else if (dual == 0)
+     {
+       METIS_PartMeshNodal(&ne, &nn, eptr, eind, NULL, NULL, &nparts, NULL, NULL, objval, epart, npart);
+
+     }
+ 	*epart_ret = (int *) calloc(sizeof(int), ne);
+	*ne_ret = (nintcf - nintci + 1);
+
+	for (i=0; i<ne; i++) {
+		(*epart_ret)[i] = (int) (epart)[i];
+	}
     
     
+	free(epart);
     free(npart);
     free(eptr);
     free(eind);
+        free(objval);
+
 }
 
 // For allread case - run on each process
@@ -172,17 +201,18 @@ void allread_calc_global_idx(int** local_global_index, int *nintci_loc, int *nin
   
   // If the metis mode chosen
   else if (type == 1) {    
-    idx_t *epart;
-    idx_t ne;
+    int *epart;
+    int ne;
     
     METIS_Partitioning(&epart, &ne, nprocs, elems, nintci, nintcf, points_count, dual);    
     int el_count=0;
-    
+    ne = nintcf - nintci + 1;
     for (NC=0; NC<ne; NC++) {      
         if (epart[NC] == myrank) {
 	    el_count++;
         }
     }
+
     
     *nintcf_loc = el_count-1;
     *nintci_loc = 0;
@@ -308,8 +338,8 @@ void oneread_calc_global_idx(int*** local_global_index, int **nintci_loc, int **
 
 // If the metis mode chosen
   else if (type == 1) {
-    idx_t *epart;
-    idx_t ne;
+    int *epart;
+    int ne;
     
     METIS_Partitioning(&epart, &ne, nprocs, elems, nintci, nintcf, points_count, dual);    
     int* el_count;    
