@@ -286,7 +286,7 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
 	}
       }
     }
-
+  }//else if (type == 1)
 
 	/*neighbouring processor search */
     int *neighbour_proc_search;
@@ -419,7 +419,7 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
    //}//else if (type == 1)
 }// allread_calc_global_idx
 
-}
+
 
 // For oneread case - run on 0 thread and distribute returned data structures in initialization.c
 void oneread_calc_global_idx(int*** local_global_index, int ***global_local_index, int **nintci_loc, int **nintcf_loc, int **nextci_loc,
