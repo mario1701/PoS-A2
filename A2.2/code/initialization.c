@@ -23,7 +23,7 @@
 #endif
 void write_vtk(char *file_in, char *scalars_name, int *local_global_index, int num_internal_cells, double *scalars, char *part_type, int myrank) ;
 
-void write_send_recv_vtk(char *file_in, int *local_global_index, int num_internal_cells, char *part_type, int myrank, int *nghb_cnt, int** send_cnt, int *** send_lst, int **recv_cnt, int *** recv_lst, int num_cells);
+void write_send_recv_vtk(char *file_in, int *local_global_index, int** nghb_to_rank, char *part_type, int myrank, int *nghb_cnt, int** send_cnt, int *** send_lst, int **recv_cnt, int *** recv_lst, int num_cells);
 
 void decide_key(char* file_in, char* part_type, char* read_type, int *input_key, int *part_key, int *read_key);
 
@@ -561,7 +561,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
     
-    write_send_recv_vtk(file_in, *local_global_index, num_internal_cells, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, ((*nintcf) - (*nintci)) );
+    write_send_recv_vtk(file_in, *local_global_index,  nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, ((*nintcf) - (*nintci)) );
     
 //    free(ranks);
 
@@ -665,7 +665,7 @@ int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, dou
   return 0;
 }//memory allocation
 
-void write_send_recv_vtk(char *file_in, int *local_global_index, int num_internal_cells, char *part_type, int myrank, int *nghb_cnt, int** send_cnt, int *** send_lst, int **recv_cnt, int *** recv_lst, int num_cells) 
+void write_send_recv_vtk(char *file_in, int *local_global_index, int** nghb_to_rank, char *part_type, int myrank, int *nghb_cnt, int** send_cnt, int *** send_lst, int **recv_cnt, int *** recv_lst, int num_cells) 
 {
   int i, j;
   char file_vtk_out_name [100], buf[10];
@@ -682,23 +682,28 @@ void write_send_recv_vtk(char *file_in, int *local_global_index, int num_interna
   strcat(file_vtk_out_name, buf);
   printf("\n%s\n", file_vtk_out_name);
   
-  double *send, *recv;
-  send = (double*) calloc(sizeof(double), num_cells);
-  recv = (double*) calloc(sizeof(double), num_cells);
+  int *send, *recv;
+  send = (int*) calloc(sizeof(int), num_cells);
+  recv = (int*) calloc(sizeof(int), num_cells);
+  
+  for (i=0; i<num_cells; i++) {
+    send[i] = -1;
+    recv[i] = -1;
+  }
   
   for (i=0; i<(*nghb_cnt); i++) {
     for (j=0; j<(*send_cnt)[i]; j++) {
-      send[(*send_lst)[i][j]] = (double) i;
+      send[(*send_lst)[i][j]] = (int) (*nghb_to_rank)[i];
     }
   }
   
   for (i=0; i<(*nghb_cnt); i++) {
     for (j=0; j<(*recv_cnt)[i]; j++) {
-      recv[(*recv_lst)[i][j]] = (double) i;
+      recv[(*recv_lst)[i][j]] = (int) (*nghb_to_rank)[i];
     }
   }
   
-      int nintci_m, nintcf_m;  
+    int nintci_m, nintcf_m;  
     int nextci_m, nextcf_m;
     int **lcc_m; 
     double *bs_m, *be_m, *bn_m, *bw_m, *bh_m, *bl_m;
@@ -713,8 +718,8 @@ void write_send_recv_vtk(char *file_in, int *local_global_index, int num_interna
             &su_m, &points_count_m, &points_m, &elems_m );
       
     vtk_write_unstr_grid_header( file_in, file_vtk_out_name, 0, num_cells, points_count_m, points_m, elems_m);
-    vtk_append_double( file_vtk_out_name, "SEND", 0, num_cells, send );
-    vtk_append_double( file_vtk_out_name, "RECEIVE", 0, num_cells, recv );
+    vtk_append_integer( file_vtk_out_name, "SEND", 0, num_cells, send );
+    vtk_append_integer( file_vtk_out_name, "RECEIVE", 0, num_cells, recv );
   
   free(send);
   free(recv);
