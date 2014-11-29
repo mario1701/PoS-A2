@@ -171,15 +171,34 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
     *nextci_loc = stop_int - start_int;        
  
     // Calculation of the number of external cells belonging to a process
-    int *boundary_direct_access;
-    compute_boundary_start(&boundary_direct_access, &num_terms_ext, nextcf, nextci, *nintci_loc, *nintcf_loc, lcc);   
+    num_terms_ext = 0;
+    
+    for (NC = start_int; NC < stop_int; NC++) {
+      for (i=0; i<6; i++) {
+	if (lcc[NC][i] >= nextci) {
+	  (num_terms_ext)++;
+	}
+      }
+    }
+    
     *nextcf_loc = *nextci_loc + num_terms_ext - 1;    
     *local_global_index = (int*)malloc( (num_terms_int + num_terms_ext)*sizeof(int) );
     
     for (i=*nintci_loc; i <= *nintcf_loc; i++) {
       (*local_global_index)[i] = start_int + i;
     }
-    compute_boundary_stop(&boundary_direct_access, *local_global_index, nextcf, nextci, *nextci_loc, *nextcf_loc, lcc);
+    
+    // Calculation of the number of external cells belonging to a process
+    j = *nextci_loc;
+    
+    for (NC = start_int; NC < stop_int; NC++) {
+      for (i=0; i<6; i++) {
+	if (lcc[NC][i] >= nextci) {
+	  (*local_global_index)[j] = lcc[NC][i];
+	  j++;
+	}
+      }
+    }
     
     
     // Calculation of the epart for classic
@@ -219,9 +238,20 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
     *nintcf_loc = el_count-1;
     *nintci_loc = 0;
     int num_terms_ext;
+
     // Calculation of the number of external cells belonging to a process
-    int *boundary_direct_access;
-    compute_boundary_start(&boundary_direct_access, &num_terms_ext, nextcf, nextci, *nintci_loc, *nintcf_loc, lcc);
+    num_terms_ext = 0;
+    
+    for (NC = 0; NC < ne; NC++) {
+      if (epart[NC] == myrank) {
+	for (i=0; i<6; i++) {
+	  if (lcc[NC][i] >= nextci) {
+	    (num_terms_ext)++;
+	  }
+	}
+      }
+    }
+    
    *local_global_index = (int*)malloc( (el_count + num_terms_ext)*sizeof(int) );
    /*allocate memory and initlaize global_local_index with -1*/
     *global_local_index = (int*)malloc((nintcf+1)*sizeof(int));
@@ -241,8 +271,23 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
 	i++;
       }
     }
-    compute_boundary_stop(&boundary_direct_access, *local_global_index, nextcf, nextci, *nextci_loc, *nextcf_loc, lcc);
-  }
+
+
+    // Calculation of the number of external cells belonging to a process
+    j = *nextci_loc;
+    
+    for (NC = 0; NC < ne; NC++) {
+      if (epart[NC] == myrank) {
+	for (i=0; i<6; i++) {
+	  if (lcc[NC][i] >= nextci) {
+	    (*local_global_index)[j] = lcc[NC][i];
+	    j++;
+	  }
+	}
+      }
+    }
+
+
 	/*neighbouring processor search */
     int *neighbour_proc_search;
     neighbour_proc_search = (int*)calloc(nprocs,sizeof(int));
@@ -374,6 +419,7 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
    //}//else if (type == 1)
 }// allread_calc_global_idx
 
+}
 
 // For oneread case - run on 0 thread and distribute returned data structures in initialization.c
 void oneread_calc_global_idx(int*** local_global_index, int ***global_local_index, int **nintci_loc, int **nintcf_loc, int **nextci_loc,
@@ -389,7 +435,7 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
   int recv_counter = 0;
   int ne = (nintcf - nintci + 1);
   int *epart;
-  epart = (int*) malloc( (ne)*sizeof(int) );
+//  epart = (int*) malloc( (ne)*sizeof(int) );
   
   *nintci_loc = (int*)malloc( nprocs*sizeof(int) );
   *nintcf_loc = (int*)malloc( nprocs*sizeof(int) );
@@ -402,6 +448,7 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
   // If the classic mode chosen
   if (type == 0) {
     int start_int, stop_int, quotient_int, remainder_int, num_terms_int, num_terms_ext;
+    epart = (int*) malloc( (ne)*sizeof(int) );
     // Calculation of the indices of the int cells for each process
     num_terms_int = nintcf - nintci + 1;
     quotient_int  = num_terms_int  / nprocs;
@@ -423,15 +470,35 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
     
       
       // Calculation of the number of external cells belonging to a process
-      int *boundary_direct_access;
-      compute_boundary_start(&boundary_direct_access, &num_terms_ext, nextcf, nextci, (*nintci_loc)[rank], (*nintcf_loc)[rank], lcc);
+      num_terms_ext = 0;
+      
+      for (NC = start_int; NC < stop_int; NC++) {
+	for (i=0; i<6; i++) {
+	  if (lcc[NC][i] >= nextci) {
+	    (num_terms_ext)++;
+	  }
+	}
+      }
+      
       (*nextcf_loc)[rank] = (*nextci_loc)[rank] + num_terms_ext - 1;     
       (*local_global_index)[rank] = (int*)malloc( (num_terms_int + num_terms_ext)*sizeof(int) );
 
       for (i=(*nintci_loc)[rank]; i <= (*nintcf_loc)[rank]; i++) {
 	(*local_global_index)[rank][i] = start_int + i;	
       }      
-      compute_boundary_stop(&boundary_direct_access, (*local_global_index)[rank], nextcf, nextci, (*nextci_loc)[rank], (*nextcf_loc)[rank], lcc);
+      
+      // Calculation of the number of external cells belonging to a process
+      j = (*nextci_loc)[rank];
+      
+      for (NC = start_int; NC < stop_int; NC++) {
+	for (i=0; i<6; i++) {
+	  if (lcc[NC][i] >= nextci) {
+	    (*local_global_index)[rank][j] = lcc[NC][i];
+	    j++;
+	  }
+	}
+      }
+      
     }
     
     // TODO: Put some code...
@@ -460,16 +527,40 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
     
     for (rank=0; rank<nprocs; rank++) {
       int num_terms_ext;      
+
       // Calculation of the number of external cells belonging to a process
-      int *boundary_direct_access;
-      compute_boundary_start(&boundary_direct_access, &num_terms_ext, nextcf, nextci, (*nintci_loc)[rank], (*nintcf_loc)[rank], lcc);      
+      num_terms_ext = 0;
+      
+      for (NC = 0; NC < ne; NC++) {
+	if (epart[NC] == rank) {
+	  for (i=0; i<6; i++) {
+	    if (lcc[NC][i] >= nextci) {
+	      (num_terms_ext)++;
+	    }
+	  }
+	}
+      }
+      
       (*local_global_index)[rank] = (int*)malloc( (el_count[rank] + num_terms_ext)*sizeof(int) );
       (*global_local_index)[rank] = (int*)calloc( (nintcf+1),sizeof(int) );
      
       (*nextci_loc)[rank] = el_count[rank];
       (*nextcf_loc)[rank] = el_count[rank] + num_terms_ext - 1;
       
-      compute_boundary_stop(&boundary_direct_access, (*local_global_index)[rank], nextcf, nextci, (*nextci_loc)[rank], (*nextcf_loc)[rank], lcc);      
+      // Calculation of the number of external cells belonging to a process
+      j = (*nextci_loc)[rank];
+      
+      for (NC = 0; NC < ne; NC++) {
+	if (epart[NC] == rank) {
+	  for (i=0; i<6; i++) {
+	    if (lcc[NC][i] >= nextci) {
+	      (*local_global_index)[rank][j] = lcc[NC][i];
+	      j++;
+	    }
+	  }
+	}
+      }
+      
     }    
         int* i_loc = (int*)calloc( nprocs, sizeof(int) );
     
