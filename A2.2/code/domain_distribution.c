@@ -437,8 +437,8 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
 
 // If the metis mode chosen
   else if (type == 1) {
-    idx_t *epart;
-    idx_t ne;
+   // idx_t *epart;
+    //idx_t ne;
     
     METIS_Partitioning(&epart, &ne, nprocs, elems, nintci, nintcf, points_count, dual);    
     int* el_count;    
@@ -508,7 +508,6 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
         *recv_lst = (int ***)malloc(nprocs*sizeof(int**));
 
         for(loop_counter = 0; loop_counter < nprocs; loop_counter ++){
-			proc_counter = 0;
         	for ( i =0; i< el_count[loop_counter]; i++){
 					/*global index for the current local element */
 					global_index_temp = (*local_global_index)[loop_counter][i];
@@ -522,26 +521,31 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
 					}
 			}
         }
-        	for(loop_counter = 0; loop_counter < nprocs; loop_counter ++){
-        for (i =0; i<nprocs; i++){
-        	if(neighbour_proc_search[loop_counter][i]>0)
-        		proc_counter +=1;
+
+        for(loop_counter = 0; loop_counter < nprocs; loop_counter ++){
+        		 proc_counter = 0;
+			for (i =0; i<nprocs; i++){
+				if(neighbour_proc_search[loop_counter][i]>0)
+					proc_counter +=1;
+			}
+
+			(*nghb_cnt)[loop_counter] = proc_counter;
+			(*nghb_to_rank)[loop_counter] = (int*)malloc(((*nghb_cnt)[loop_counter])*sizeof(int));
+			nghb_to_rank_reverse[loop_counter] = (int*)malloc(nprocs*sizeof(int));
+			for (i =0; i<nprocs; i++){
+				nghb_to_rank_reverse[loop_counter][i]=-1;
+			}
+			nghb_to_rank_counter = 0;
+			for (i =0; i<nprocs; i++){
+					if(neighbour_proc_search[loop_counter][i]>0){
+						(*nghb_to_rank)[loop_counter][nghb_to_rank_counter] = i;
+						nghb_to_rank_reverse[loop_counter][i] = nghb_to_rank_counter;
+						nghb_to_rank_counter +=1 ;
+					}
+			}
         }
 
-        (*nghb_cnt)[loop_counter] = proc_counter;
-        (*nghb_to_rank)[loop_counter] = (int*)malloc(((*nghb_cnt)[loop_counter])*sizeof(int));
-        nghb_to_rank_reverse[loop_counter] = (int*)malloc(nprocs*sizeof(int));
-        for (i =0; i<nprocs; i++){
-        	nghb_to_rank_reverse[loop_counter][i]=-1;
-        }
-        nghb_to_rank_counter = 0;
-        for (i =0; i<nprocs; i++){
-            	if(neighbour_proc_search[loop_counter][i]>0){
-            		(*nghb_to_rank)[loop_counter][nghb_to_rank_counter] = i;
-            		nghb_to_rank_reverse[loop_counter][i] = nghb_to_rank_counter;
-            		nghb_to_rank_counter +=1 ;
-            	}
-            }
+        for(loop_counter = 0; loop_counter < nprocs; loop_counter ++){
 
         /*quasi hash-table for the neighbour search*/
         /*very expensive!*/
