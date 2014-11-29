@@ -147,12 +147,15 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
   int i, j, NC;
   int type, dual;
   determine_type(&type, &dual, part_type);  
+  int el_count=0;
+  int *epart;
+  int ne;
  
   // If the classic mode chosen
   if (type == 0) {
     int start_int, stop_int, quotient_int, remainder_int, num_terms_int, num_terms_ext;
-    int ne = (nintcf - nintci + 1);
-    int *epart;
+    ne= (nintcf - nintci + 1);
+
     epart = (int*) malloc( (ne)*sizeof(int) );
     
     // Calculation of the indices of the int cells for each process    
@@ -209,20 +212,22 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
       }
     }
     
-    // TODO: Put some code...
-    
-    free(epart);
+
+
+        for (NC=0; NC<ne; NC++) {
+            if (epart[NC] == myrank) {
+    	    el_count++;
+            }
+        }
       
     
   } //if (type == 0)
   
   // If the metis mode chosen
-  else if (type == 1) {    
-    int *epart;//storing the partition information for elements
-    int ne;
-    
+  else if (type == 1) {
+
     METIS_Partitioning(&epart, &ne, nprocs, elems, nintci, nintcf, points_count, dual);    
-    int el_count=0;
+    el_count=0;
     
     for (NC=0; NC<ne; NC++) {      
         if (epart[NC] == myrank) {
@@ -266,6 +271,7 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
 	i++;
       }
     }
+<<<<<<< HEAD
 
     // Calculation of the number of external cells belonging to a process
     j = *nextci_loc;
@@ -281,6 +287,10 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
       }
     }
 
+=======
+    compute_boundary_stop(&boundary_direct_access, *local_global_index, nextcf, nextci, *nextci_loc, *nextcf_loc, lcc);
+  }
+>>>>>>> a832f30a2ec89ef735e0ad0266b97f6acac9d4f5
 	/*neighbouring processor search */
     int *neighbour_proc_search;
     neighbour_proc_search = (int*)calloc(nprocs,sizeof(int));
@@ -409,7 +419,7 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
 	free(send_neighbour_search);
 	free(recv_neighbour_search);
     free(epart);
-   }//else if (type == 1)
+   //}//else if (type == 1)
 }// allread_calc_global_idx
 
 
