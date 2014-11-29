@@ -271,7 +271,7 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
 	i++;
       }
     }
-<<<<<<< HEAD
+
 
     // Calculation of the number of external cells belonging to a process
     j = *nextci_loc;
@@ -287,10 +287,7 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
       }
     }
 
-=======
-    compute_boundary_stop(&boundary_direct_access, *local_global_index, nextcf, nextci, *nextci_loc, *nextcf_loc, lcc);
-  }
->>>>>>> a832f30a2ec89ef735e0ad0266b97f6acac9d4f5
+
 	/*neighbouring processor search */
     int *neighbour_proc_search;
     neighbour_proc_search = (int*)calloc(nprocs,sizeof(int));
@@ -422,6 +419,7 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
    //}//else if (type == 1)
 }// allread_calc_global_idx
 
+}
 
 // For oneread case - run on 0 thread and distribute returned data structures in initialization.c
 void oneread_calc_global_idx(int*** local_global_index, int ***global_local_index, int **nintci_loc, int **nintcf_loc, int **nextci_loc,
