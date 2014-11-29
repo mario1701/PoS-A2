@@ -427,7 +427,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
     
 
-    write_send_recv_vtk(file_in, *local_global_index, nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, ((*nintcf) - (*nintci)) );
+    write_send_recv_vtk(file_in, *local_global_index, nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, ((*nintcf) - (*nintci)+1) );
 
 
     /*free XXX_array*/
@@ -563,7 +563,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
     
-    write_send_recv_vtk(file_in, *local_global_index,  nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, ((*nintcf) - (*nintci)) );
+    write_send_recv_vtk(file_in, *local_global_index,  nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, ((*nintcf) - (*nintci)+1) );
     
 //    free(ranks);
 
