@@ -54,7 +54,11 @@ int initialization(char* file_in, char* part_type, char* read_type, int nprocs, 
 int input_key, part_key, read_key;
 decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     #endif
-  
+
+// TODO: Introduced temporarily
+int input_key, part_key, read_key;
+decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
+
   int i = 0;
   int j = 0;
  
@@ -547,13 +551,13 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 	write_pstats_exectime(input_key, part_key, read_key, myrank, ptime);
 	write_pstats_partition(input_key, part_key, myrank, num_internal_cells, (Nextcf_loc - Nextci_loc +1) );
 #endif
-    
-//     double *ranks = (double*) calloc(num_internal_cells, sizeof(double));
-//     for (i=0; i<num_internal_cells; i++)
-//     {
-//       ranks[i] = 1.0;
-//     }
-//     write_vtk(file_in, "ranks", *local_global_index, num_internal_cells, ranks, part_type, myrank);
+
+    //write_pstats_communication(input_key, part_key,  myrank, nprocs, nghb_cnt, nghb_idx, *send_cnt, *send_lst, *recv_cnt, *recv_lst );
+    int nghb_idx;
+    for (nghb_idx=0; nghb_idx<(*nghb_cnt);nghb_idx++) {
+	write_pstats_communication(input_key, part_key,  myrank, nprocs, *nghb_cnt, nghb_idx, *send_cnt, *send_lst, *recv_cnt, *recv_lst );
+    }
+
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
     
