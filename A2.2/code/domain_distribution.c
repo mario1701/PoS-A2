@@ -442,6 +442,10 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
   int ne = (nintcf - nintci + 1);
   int *epart;
 //  epart = (int*) malloc( (ne)*sizeof(int) );
+  int* el_count;
+  el_count = (int*)calloc( nprocs, sizeof(int) );
+  //counter used in type = 1
+  int *i_loc = (int*)calloc( nprocs, sizeof(int) );
   
   *nintci_loc = (int*)malloc( nprocs*sizeof(int) );
   *nintcf_loc = (int*)malloc( nprocs*sizeof(int) );
@@ -512,9 +516,9 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
       
     }
     
-    // TODO: Put some code...
-    
-    free(epart);
+    for (NC=0; NC<ne; NC++) {
+          (el_count[epart[NC]])++;
+        }
     
   }//if (type == 0)  
 
@@ -524,8 +528,7 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
     //idx_t ne;
     
     METIS_Partitioning(&epart, &ne, nprocs, elems, nintci, nintcf, points_count, dual);    
-    int* el_count;    
-    el_count = (int*)calloc( nprocs, sizeof(int) );
+
 
     for (NC=0; NC<ne; NC++) {      
       (el_count[epart[NC]])++;      
@@ -573,7 +576,7 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
       }
       
     }    
-        int* i_loc = (int*)calloc( nprocs, sizeof(int) );
+
     
     for (NC=0; NC<ne; NC++) {
 	(*local_global_index)[epart[NC]][i_loc[epart[NC]]] =  NC;
@@ -581,15 +584,7 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
 	(i_loc[epart[NC]])++; 
     }
     
-
-
-
-
-
-
-
-
-
+  }// else if (type == 1)
 
     /*neighbouring processor search*/
     int **neighbour_proc_search;
@@ -747,6 +742,5 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
     free(i_loc);    
     free(el_count);    
     free(epart);        
-  }//else if (type == 1) 
   
 }//oneread_calc_global_idx
