@@ -183,9 +183,15 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
     
     *nextcf_loc = *nextci_loc + num_terms_ext - 1;    
     *local_global_index = (int*)malloc( (num_terms_int + num_terms_ext)*sizeof(int) );
+    *global_local_index = (int*)malloc((nintcf+1)*sizeof(int));
+       int k = 0;
+       for (k=0; k<nintcf+1; k++){
+           (*global_local_index)[k]=-1;
+       }
     
     for (i=*nintci_loc; i <= *nintcf_loc; i++) {
       (*local_global_index)[i] = start_int + i;
+      (*global_local_index)[start_int + i]=i;
     }
     
     // Calculation of the number of external cells belonging to a process
