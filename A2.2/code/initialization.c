@@ -305,7 +305,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     	int dest = 0;
     	*nghb_cnt = nghb_cnt_array[0];
     	for (dest = 1; dest < nprocs; dest++ ){
-    		MPI_Send(&nghb_cnt_array[dest],1,MPI_INT, dest, 8, MPI_COMM_WORLD);
+    		MPI_Send(&(nghb_cnt_array[dest]),1,MPI_INT, dest, 8, MPI_COMM_WORLD);
     	}
     }
 
@@ -332,6 +332,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     }
 
     if(myrank > 0){
+	
     	*nghb_to_rank = (int*)malloc((*nghb_cnt)*sizeof(int));
     	*send_cnt  = (int*)malloc((*nghb_cnt)*sizeof(int));
     	*recv_cnt  = (int*)malloc((*nghb_cnt)*sizeof(int));
@@ -394,6 +395,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 
     	    	    MPI_Recv(&((*recv_lst)[j][0]),(*recv_cnt)[j],MPI_INT, 0, j+40, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
     	    	}
+    	    
     }
 
     // initialize the arrays
@@ -426,8 +428,13 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
     
-
-    write_send_recv_vtk(file_in, *local_global_index, nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, ((*nintcf) - (*nintci)+1) );
+  if(myrank > 0){
+    write_send_recv_vtk(file_in, *local_global_index, nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, local_global_nintcf + 1 );
+  }
+  else if (myrank == 0)
+  {
+     write_send_recv_vtk(file_in, *local_global_index, nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, *nintcf + 1 );
+  }
 
 
     /*free XXX_array*/
@@ -687,24 +694,26 @@ void write_send_recv_vtk(char *file_in, int *local_global_index, int** nghb_to_r
   int *send, *recv;
   send = (int*) calloc(sizeof(int), num_cells);
   recv = (int*) calloc(sizeof(int), num_cells);
-  
+
   for (i=0; i<num_cells; i++) {
     send[i] = -1;
     recv[i] = -1;
   }
   
+
   for (i=0; i<(*nghb_cnt); i++) {
     for (j=0; j<(*send_cnt)[i]; j++) {
       send[(*send_lst)[i][j]] = (int) (*nghb_to_rank)[i];
     }
   }
+
   
   for (i=0; i<(*nghb_cnt); i++) {
     for (j=0; j<(*recv_cnt)[i]; j++) {
       recv[(*recv_lst)[i][j]] = (int) (*nghb_to_rank)[i];
     }
   }
-  
+
     int nintci_m, nintcf_m;  
     int nextci_m, nextcf_m;
     int **lcc_m; 
