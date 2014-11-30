@@ -11,43 +11,6 @@
 #include <metis.h>
 #include <string.h>
 
-// Start counting the external cells
-// If an internal cell belonging to the particular process refers to an external cell, increase its counter
-void compute_boundary_start(int** boundary_direct_access, int *num_terms_ext, int nextcf, int nextci, int nintci_loc, int nintcf_loc, int **lcc)  {
-  // Direct access table
-  *boundary_direct_access = (int*)calloc( (nextcf - nextci + 1), sizeof(int) );
-  int i, NC;
-  for (NC = nintci_loc; NC <= nintcf_loc; NC++) {
-    for (i=0; i<6; i++) {
-      if (lcc[NC][i] >= nextci) {
-	((*boundary_direct_access)[lcc[NC][i] - nextci])++;
-      }
-    }
-  }
-  
-  *num_terms_ext = 0;
-  for (NC=nextci; NC<=nextcf; NC++) {
-    if ( (*boundary_direct_access)[NC - nextci] > 0) {
-      (*num_terms_ext)++;
-    }
-  }
-}//compute_boundary_start
-
-// Append the external cells that were reffered at least once by internals cell to the mapping array
-void compute_boundary_stop(int** boundary_direct_access, int *local_global_index, int nextcf, int nextci, int nextci_loc, int nextcf_loc, int **lcc) {
-  int j=0;
-  int i;
- 
-  for (i=nextci; i<=nextcf; i++) {
-    if ( (*boundary_direct_access)[i - nextci] > 0) {
-      local_global_index[nextci_loc + j] = i;
-      j++;
-    }
-  }
-
-  free(*boundary_direct_access);
-}//compute_boundary_stop
-
 // Deterine the type of data distribution
 void determine_type(int *type, int *dual, char *part_type) {
   if(strcmp(part_type, "classic")==0){
@@ -88,8 +51,8 @@ void METIS_Partitioning(int **epart_ret, int *ne_ret, int nprocs, int *elems, in
   
   //Unbelieveable thing happening - order matters!
   
-  // eind = (idx_t *) calloc(sizeof(idx_t), (ne * 8));              
-  // eptr = (idx_t *) calloc(sizeof(idx_t), (ne + 1));
+   //eind = (idx_t *) calloc(sizeof(idx_t), (ne * 8));              
+   //eptr = (idx_t *) calloc(sizeof(idx_t), (ne + 1));
   
   eptr = (idx_t *) calloc(sizeof(idx_t), (ne + 1));
   eind = (idx_t *) calloc(sizeof(idx_t), (8*ne));

@@ -15,7 +15,7 @@
 ##                    0 h 30 min 0 secs
 #@ job_name = fire
 #@ network.MPI = sn_all,not_shared,us
-#@ initialdir = $(home)/Supercomputers/A2/
+#@ initialdir = $(home)/Supercomputers/A2.2/
 #@ output = job$(jobid).out
 #@ error = job$(jobid).err
 #@ notification=always
@@ -29,5 +29,9 @@ module load mpi.intel
 module load papi
 perf_off
 
-## Running 3 times cojack with text input
-mpiexec -n 9 ./gccg drall.geo.bin dual allread
+mpiexec -n 9 ./gccg drall.geo.bin classic allread
+mpiexec -n 9 ./gccg cojack.geo.bin classic allread
+mpiexec -n 9 ./gccg drall.geo.bin dual oneread
+mpiexec -n 9 ./gccg cojack.geo.bin dual oneread
+
+

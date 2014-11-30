@@ -5,7 +5,7 @@
  * @author V. Petkov, A. Berariu
  */
 
-//#define PAPI
+#define PAPI
 
 #include <stdlib.h>
 #include <mpi.h>
@@ -55,9 +55,6 @@ int input_key, part_key, read_key;
 decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     #endif
 
-// TODO: Introduced temporarily
-int input_key, part_key, read_key;
-decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 
   int i = 0;
   int j = 0;
@@ -423,10 +420,18 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 	if(PAPI_flops( &rtime, &ptime, &flpops, &mflops ) != PAPI_OK) handle_error(1);
 	write_pstats_exectime(input_key, part_key, read_key, myrank, ptime);
 	write_pstats_partition(input_key, part_key, myrank, num_internal_cells, (Nextcf_loc - Nextci_loc +1) );
+
+	    //write_pstats_communication(input_key, part_key,  myrank, nprocs, nghb_cnt, nghb_idx, *send_cnt, *send_lst, *recv_cnt, *recv_lst );
+	    int nghb_idx;
+	    for (nghb_idx=0; nghb_idx<(*nghb_cnt);nghb_idx++) {
+		write_pstats_communication(input_key, part_key,  myrank, nprocs, *nghb_cnt, nghb_idx, *send_cnt, *send_lst, *recv_cnt, *recv_lst );
+	    }
 #endif
 
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
+
+
     
   if(myrank > 0){
     write_send_recv_vtk(file_in, *local_global_index, nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, local_global_nintcf + 1 );
@@ -557,15 +562,17 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
  
 #ifdef PAPI
 	if(PAPI_flops( &rtime, &ptime, &flpops, &mflops ) != PAPI_OK) handle_error(1);
+
 	write_pstats_exectime(input_key, part_key, read_key, myrank, ptime);
 	write_pstats_partition(input_key, part_key, myrank, num_internal_cells, (Nextcf_loc - Nextci_loc +1) );
+
+	    //write_pstats_communication(input_key, part_key,  myrank, nprocs, nghb_cnt, nghb_idx, *send_cnt, *send_lst, *recv_cnt, *recv_lst );
+	    int nghb_idx;
+	    for (nghb_idx=0; nghb_idx<(*nghb_cnt);nghb_idx++) {
+		write_pstats_communication(input_key, part_key,  myrank, nprocs, *nghb_cnt, nghb_idx, *send_cnt, *send_lst, *recv_cnt, *recv_lst );
+	    }
 #endif
 
-    //write_pstats_communication(input_key, part_key,  myrank, nprocs, nghb_cnt, nghb_idx, *send_cnt, *send_lst, *recv_cnt, *recv_lst );
-    int nghb_idx;
-    for (nghb_idx=0; nghb_idx<(*nghb_cnt);nghb_idx++) {
-	write_pstats_communication(input_key, part_key,  myrank, nprocs, *nghb_cnt, nghb_idx, *send_cnt, *send_lst, *recv_cnt, *recv_lst );
-    }
 
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
@@ -703,14 +710,16 @@ void write_send_recv_vtk(char *file_in, int *local_global_index, int** nghb_to_r
 
   for (i=0; i<(*nghb_cnt); i++) {
     for (j=0; j<(*send_cnt)[i]; j++) {
-      send[(*send_lst)[i][j]] = (int) (*nghb_to_rank)[i];
+      //send[(*send_lst)[i][j]] = (int) (*nghb_to_rank)[i];
+	send[(*send_lst)[i][j]] = (int) i;
     }
   }
 
   
   for (i=0; i<(*nghb_cnt); i++) {
     for (j=0; j<(*recv_cnt)[i]; j++) {
-      recv[(*recv_lst)[i][j]] = (int) (*nghb_to_rank)[i];
+      //recv[(*recv_lst)[i][j]] = (int) (*nghb_to_rank)[i];
+	recv[(*recv_lst)[i][j]] = (int) i;
     }
   }
 
