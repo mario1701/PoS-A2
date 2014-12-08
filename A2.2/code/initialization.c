@@ -101,7 +101,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     int **send_cnt_array, **recv_cnt_array;
     int ***send_lst_array, ***recv_lst_array;
     
-    // First broadcast the necessary data
+    // Broadcasting the data needed by each process
         
     MPI_Bcast(nintcf, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(points_count, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -130,6 +130,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     
     /*special treatment for processor 0 ended*/
     
+    // Communication of the array parameters started
     // Scatter operations
     MPI_Scatter(length_loc_index_array, 1, MPI_INT, &length_loc_index, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Scatter(nintci_loc_array, 1, MPI_INT, &Nintci_loc, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -137,6 +138,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     MPI_Scatter(nextci_loc_array, 1, MPI_INT, &Nextci_loc, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Scatter(nextcf_loc_array, 1, MPI_INT, &Nextcf_loc, 1, MPI_INT, 0, MPI_COMM_WORLD);
       
+    
     if (myrank==0) {
       
       int dest;
@@ -155,6 +157,9 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 
       MPI_Recv((*local_global_index),length_loc_index,MPI_INT,0,5,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
     }//if (myrank>0)
+    
+    // Communication of the array parameters ended
+    
     
     /*Data Transfer*/
     if (myrank==0){
@@ -310,22 +315,14 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
       free(nextcf_loc_array); 
     }//if (myrank==0)
 
+    
     /*data transfer part for the milestone A2.2*/
     /*for nghb_cnt*/
-    if(0 == myrank){
-    	int dest = 0;
-    	*nghb_cnt = nghb_cnt_array[0];
-    	for (dest = 1; dest < nprocs; dest++ ){
-    		MPI_Send(&(nghb_cnt_array[dest]),1,MPI_INT, dest, 8, MPI_COMM_WORLD);
-    	}
-    }
-
-    if (myrank > 0){
-    	MPI_Recv(&(*nghb_cnt), 1, MPI_INT, 0, 8, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-    }
-
+    
+    MPI_Scatter(nghb_cnt_array, 1, MPI_INT, nghb_cnt, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    
     /*for nghb_to_rank, send_cnt, recv_cnt*/
-    if(0 ==myrank){
+    if(0 == myrank){
     	*nghb_to_rank = (int*)malloc((*nghb_cnt)*sizeof(int));
     	*send_cnt  = (int*)malloc((*nghb_cnt)*sizeof(int));
     	*recv_cnt  = (int*)malloc((*nghb_cnt)*sizeof(int));
