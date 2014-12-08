@@ -27,7 +27,7 @@ void write_send_recv_vtk(char *file_in, int *local_global_index, int** nghb_to_r
 
 void decide_key(char* file_in, char* part_type, char* read_type, int *input_key, int *part_key, int *read_key);
 
-int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local,int num_internal_cells, int num_cells, int *nintcf, int points_count, double **var, double **cgup, double **oc, double **cnorm);
+int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local,int num_internal_cells, int num_cells, double **var, double **cgup, double **oc, double **cnorm);
 
 
 int initialization(char* file_in, char* part_type, char* read_type, int nprocs, int myrank, int* nintci, int* nintcf, int* nextci,
@@ -102,6 +102,15 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     int **nghb_to_rank_array;
     int **send_cnt_array, **recv_cnt_array;
     int ***send_lst_array, ***recv_lst_array;
+    
+    // First broadcast the necessary data
+    
+//     if (rank > 0) {
+//       int 
+//     }
+    
+    MPI_Bcast(nintcf, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(points_count, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     if (0 == myrank){
 
@@ -138,10 +147,12 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 	MPI_Send(local_global_index_array[dest], length_loc_index_array[dest], MPI_INT, dest, 5, MPI_COMM_WORLD);
 	MPI_Send(nintcf, 1, MPI_INT, dest, 6, MPI_COMM_WORLD);
 	MPI_Send(points_count, 1, MPI_INT, dest, 7, MPI_COMM_WORLD);
-
       }
+      
+      
     }//if (0 == myrank)
     
+
     if (myrank>0){
       MPI_Recv(&length_loc_index,1,MPI_INT,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
       if ((*local_global_index = (int*)malloc(length_loc_index*sizeof(int)))== NULL){
@@ -166,7 +177,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 	num_internal_cells = nintcf_loc_array[dest] - nintci_loc_array[dest] +1;
 	
 	// LCC_local - not needed in the current solution for oneread
-	memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
+	memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, num_internal_cells, num_cells, &*var, &*cgup, &*oc, &*cnorm);
 	
 	for (i =nintci_loc_array[dest]; i <=nextcf_loc_array[dest]; i++){
 	  bs_local[i] = (*bs)[local_global_index_array[dest][i]];
@@ -225,7 +236,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
       num_cells = Nextcf_loc - Nintci_loc +1;
       num_internal_cells = Nintcf_loc  - Nintci_loc +1;
       
-      memoryallocation(lcc, bs, be, bn, bw, bh, bl, bp, su, num_internal_cells, num_cells, &local_global_nintcf, (*points_count), &*var, &*cgup, &*oc, &*cnorm);
+      memoryallocation(lcc, bs, be, bn, bw, bh, bl, bp, su, num_internal_cells, num_cells, &*var, &*cgup, &*oc, &*cnorm);
      
       MPI_Recv(*bs, num_cells, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       MPI_Recv(*be, num_cells, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -257,7 +268,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
       num_cells = Nextcf_loc - Nintci_loc +1;
       num_internal_cells = Nintcf_loc  - Nintci_loc +1;
  
-      memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
+      memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, num_internal_cells, num_cells, &*var, &*cgup, &*oc, &*cnorm);
 
       for (i =nintci_loc_array[dest]; i <=nextcf_loc_array[dest]; i++){
 	bs_local[i] = (*bs)[local_global_index_array[dest][i]];
@@ -515,7 +526,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     num_cells = Nextcf_loc - Nintci_loc +1;
     num_internal_cells = Nintcf_loc - Nintci_loc +1;
     
-    memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
+    memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, num_internal_cells, num_cells, &*var, &*cgup, &*oc, &*cnorm);
 
     /*read LCC for LCC_local*/
     for (i =Nintci_loc; i <=Nintcf_loc; i++){
@@ -630,7 +641,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
   return 0;
 }
 
-int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local, /*int points_count_local,int ***points_local, int **elems_local,*/ int num_internal_cells, int num_cells, int *nintcf, int points_count, double **var, double **cgup, double **oc, double **cnorm)
+int memoryallocation(int ***LCC_local, double **bs_local, double **be_local, double **bn_local, double **bw_local, double **bh_local, double **bl_local, double **bp_local, double **su_local, int num_internal_cells, int num_cells, double **var, double **cgup, double **oc, double **cnorm)
 {
   // allocating LCC_local
   int i =0;  
