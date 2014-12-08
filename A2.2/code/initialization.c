@@ -120,41 +120,38 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
       /*special treatment for processor 0 since there is no MPI_Send for that*/
       length_loc_index = length_loc_index_array[0];
       
-      Nintci_loc = nintci_loc_array[0];
-      Nintcf_loc = nintcf_loc_array[0];
-      Nextci_loc = nextci_loc_array[0];
-      Nextcf_loc = nextcf_loc_array[0];
-      
       (*local_global_index) = (int*)malloc(length_loc_index*sizeof(int)); 
    
       for (i=0; i<length_loc_index; i++) {
 	(*local_global_index)[i] = local_global_index_array[0][i];
       }
 
+    }     
+    
     /*special treatment for processor 0 ended*/
+    
+    // Scatter operations
+    MPI_Scatter(length_loc_index_array, 1, MPI_INT, &length_loc_index, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatter(nintci_loc_array, 1, MPI_INT, &Nintci_loc, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatter(nintcf_loc_array, 1, MPI_INT, &Nintcf_loc, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatter(nextci_loc_array, 1, MPI_INT, &Nextci_loc, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Scatter(nextcf_loc_array, 1, MPI_INT, &Nextcf_loc, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      
+    if (myrank==0) {
+      
+      int dest;
       for (dest = 1; dest<nprocs; dest++){
-	MPI_Send(&(length_loc_index_array[dest]), 1, MPI_INT, dest, 0, MPI_COMM_WORLD);
-	MPI_Send(&(nintci_loc_array[dest]), 1, MPI_INT, dest, 1, MPI_COMM_WORLD);
-	MPI_Send(&(nintcf_loc_array[dest]), 1, MPI_INT, dest, 2, MPI_COMM_WORLD);
-	MPI_Send(&(nextci_loc_array[dest]), 1, MPI_INT, dest, 3, MPI_COMM_WORLD);
-	MPI_Send(&(nextcf_loc_array[dest]), 1, MPI_INT, dest, 4, MPI_COMM_WORLD);
 	MPI_Send(local_global_index_array[dest], length_loc_index_array[dest], MPI_INT, dest, 5, MPI_COMM_WORLD);
       }
       
-      
     }//if (0 == myrank)
-    
 
     if (myrank>0){
-      MPI_Recv(&length_loc_index,1,MPI_INT,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+
       if ((*local_global_index = (int*)malloc(length_loc_index*sizeof(int)))== NULL){
 	fprintf(stderr, "malloc(local_global_index) failed\n");
 	return -1;
       }
-      MPI_Recv(&Nintci_loc,1,MPI_INT,0,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-      MPI_Recv(&Nintcf_loc,1,MPI_INT,0,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-      MPI_Recv(&Nextci_loc,1,MPI_INT,0,3,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-      MPI_Recv(&Nextcf_loc,1,MPI_INT,0,4,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 
       MPI_Recv((*local_global_index),length_loc_index,MPI_INT,0,5,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
     }//if (myrank>0)
@@ -448,16 +445,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     write_vtk(file_in, "CGUP", *local_global_index, num_internal_cells, *cgup, part_type, myrank);
     write_vtk(file_in, "SU", *local_global_index, num_internal_cells, *su, part_type, myrank);
 
-
-    
-  if(myrank > 0){
     write_send_recv_vtk(file_in, *local_global_index, nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, *nintcf + 1 );
-  }
-  else if (myrank == 0)
-  {
-    write_send_recv_vtk(file_in, *local_global_index, nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, *nintcf + 1 );
-  }
-
 
     /*free XXX_array*/
     if(0 == myrank){
