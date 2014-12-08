@@ -75,15 +75,28 @@ void METIS_Partitioning(int **epart_ret, int *ne_ret, int nprocs, int *elems, in
   
   objval = (idx_t *) calloc(sizeof(idx_t), 1);
   
-  if (dual == 1)
+  // Since METIS cannot compute the partitioning for a single process, we have to do it ourselves
+  if (nprocs > 1)
   {
-    METIS_PartMeshDual(&ne, &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, objval, epart, npart);
+  
+    if (dual == 1)
+    {
+      METIS_PartMeshDual(&ne, &nn, eptr, eind, NULL, NULL, &ncommon, &nparts, NULL, NULL, objval, epart, npart);
+    }
+    else if (dual == 0)
+    {
+      METIS_PartMeshNodal(&ne, &nn, eptr, eind, NULL, NULL, &nparts, NULL, NULL, objval, epart, npart);
+      
+    }
+  
   }
-  else if (dual == 0)
+  else
   {
-    METIS_PartMeshNodal(&ne, &nn, eptr, eind, NULL, NULL, &nparts, NULL, NULL, objval, epart, npart);
-    
+    for (i=0; i<ne; i++) {
+      epart[i] = 0;
+    }
   }
+  
   *epart_ret = (int *) calloc(sizeof(int), ne);
   *ne_ret = (nintcf - nintci + 1);
   
@@ -91,7 +104,7 @@ void METIS_Partitioning(int **epart_ret, int *ne_ret, int nprocs, int *elems, in
     (*epart_ret)[i] = (int) (epart)[i];
   }
   
-  
+
   free(epart);
   free(npart);
   free(eptr);
