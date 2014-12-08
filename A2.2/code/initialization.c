@@ -89,14 +89,12 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
   double *bs_local, *be_local, *bn_local, *bw_local, *bh_local, *bl_local;
   double *bp_local; 
   double *su_local; 
-  //int local_global_points_count= *points_count;
   
   if(strcmp(read_type, "oneread") == 0){
      MPI_Status Status[6];
     int ** local_global_index_array;
     int ** global_local_index_array;
     int *nintci_loc_array, *nintcf_loc_array, *nextci_loc_array, *nextcf_loc_array, *length_loc_index_array;
-    int local_global_nintcf;
     int length_loc_index;
     int *nghb_cnt_array;
     int **nghb_to_rank_array;
@@ -104,11 +102,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     int ***send_lst_array, ***recv_lst_array;
     
     // First broadcast the necessary data
-    
-//     if (rank > 0) {
-//       int 
-//     }
-    
+        
     MPI_Bcast(nintcf, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(points_count, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -145,8 +139,6 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 	MPI_Send(&(nextci_loc_array[dest]), 1, MPI_INT, dest, 3, MPI_COMM_WORLD);
 	MPI_Send(&(nextcf_loc_array[dest]), 1, MPI_INT, dest, 4, MPI_COMM_WORLD);
 	MPI_Send(local_global_index_array[dest], length_loc_index_array[dest], MPI_INT, dest, 5, MPI_COMM_WORLD);
-	MPI_Send(nintcf, 1, MPI_INT, dest, 6, MPI_COMM_WORLD);
-	MPI_Send(points_count, 1, MPI_INT, dest, 7, MPI_COMM_WORLD);
       }
       
       
@@ -165,8 +157,6 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
       MPI_Recv(&Nextcf_loc,1,MPI_INT,0,4,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 
       MPI_Recv((*local_global_index),length_loc_index,MPI_INT,0,5,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-      MPI_Recv(&local_global_nintcf, 1, MPI_INT, 0, 6, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-      MPI_Recv(&(*points_count), 1, MPI_INT, 0, 7, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
     }//if (myrank>0)
     
     /*Data Transfer*/
@@ -461,11 +451,11 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 
     
   if(myrank > 0){
-    write_send_recv_vtk(file_in, *local_global_index, nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, local_global_nintcf + 1 );
+    write_send_recv_vtk(file_in, *local_global_index, nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, *nintcf + 1 );
   }
   else if (myrank == 0)
   {
-     write_send_recv_vtk(file_in, *local_global_index, nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, *nintcf + 1 );
+    write_send_recv_vtk(file_in, *local_global_index, nghb_to_rank, part_type, myrank, nghb_cnt, send_cnt, send_lst, recv_cnt, recv_lst, *nintcf + 1 );
   }
 
 
