@@ -5,7 +5,7 @@
  * @author V. Petkov, A. Berariu
  */
 
-#define PAPI
+//#define PAPI
 
 #include <stdlib.h>
 #include <mpi.h>
@@ -165,6 +165,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 	num_cells = nextcf_loc_array[dest] - nintci_loc_array[dest] +1;
 	num_internal_cells = nintcf_loc_array[dest] - nintci_loc_array[dest] +1;
 	
+	// LCC_local - not needed in the current solution for oneread
 	memoryallocation(&LCC_local, &bs_local, &be_local, &bn_local, &bw_local, &bh_local, &bl_local, &bp_local, &su_local, num_internal_cells, num_cells, &*nintcf, *points_count, &*var, &*cgup, &*oc, &*cnorm);
 	
 	for (i =nintci_loc_array[dest]; i <=nextcf_loc_array[dest]; i++){
@@ -187,19 +188,22 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 	MPI_Send(bp_local, num_cells, MPI_DOUBLE, dest, 6, MPI_COMM_WORLD);
 	MPI_Send(su_local, num_cells, MPI_DOUBLE, dest, 7, MPI_COMM_WORLD);
 	
+	// Reasonable solution for sending lcc - create an array to store lcc in a continous way and use just a single send operation
+	int *lcc_send_buf = malloc( 6*(nintcf_loc_array[dest] - nintci_loc_array[dest] + 1)*sizeof(int) );
+	
 	for (i =nintci_loc_array[dest]; i <=nintcf_loc_array[dest]; i++){
 	  for (j = 0; j<6; j++){
-	    LCC_local[i][j] = (*lcc)[local_global_index_array[dest][i]][j];
+	    lcc_send_buf[j + 6*i] = (*lcc)[local_global_index_array[dest][i]][j];
 	  }
 	}
 
-	for (i =nintci_loc_array[dest]; i <=nintcf_loc_array[dest]; i++){
-	  MPI_Send(LCC_local[i], 6, MPI_INT, dest, i, MPI_COMM_WORLD);
-	}
+	MPI_Send(lcc_send_buf, 6*(nintcf_loc_array[dest] - nintci_loc_array[dest] + 1), MPI_INT, dest, 8, MPI_COMM_WORLD);
 
 	for (i=0; i<num_internal_cells; i++) {
 	  free(LCC_local[i]);
 	}
+	
+	free(lcc_send_buf);
 	
 	free(LCC_local);
 	free(bs_local);
@@ -232,9 +236,19 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
       MPI_Recv(*bp, num_cells, MPI_DOUBLE, 0, 6, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       MPI_Recv(*su, num_cells, MPI_DOUBLE, 0, 7, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-    for (i =Nintci_loc; i <=Nintcf_loc; i++){
-	MPI_Recv((*lcc)[i], 6, MPI_INT, 0, i, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      // Reasonable solution for sending lcc - create an array to store lcc in a continous way and use just a single send operation
+      int *lcc_recv_buf = malloc( 6*num_internal_cells*sizeof(int) );
+      
+      MPI_Recv(lcc_recv_buf, 6*num_internal_cells, MPI_INT, 0, 8, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      
+      for (i =Nintci_loc; i <=Nintcf_loc; i++){
+	for (j = 0; j<6; j++){
+	  (*lcc)[i][j] = lcc_recv_buf[j + 6*i];
+	}
       }
+      
+      free(lcc_recv_buf);
+      
     }//if (myrank>0)
    
     /*special treatment for processor 0, since here we cannot use MPI_Send*/
@@ -255,6 +269,8 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 	bp_local[i] = (*bp)[local_global_index_array[dest][i]];
 	su_local[i] = (*su)[local_global_index_array[dest][i]];
       }
+     
+      
       for (i =nintci_loc_array[dest]; i <=nintcf_loc_array[dest]; i++){
 	for (j = 0; j<6; j++){
 	  LCC_local[i][j] = (*lcc)[local_global_index_array[dest][i]][j];
