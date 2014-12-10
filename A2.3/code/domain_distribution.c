@@ -159,15 +159,15 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
     
     *nextcf_loc = *nextci_loc + num_terms_ext - 1;    
     *local_global_index = (int*)malloc( (num_terms_int + num_terms_ext)*sizeof(int) );
-    *global_local_index = (int*)malloc((nintcf+1)*sizeof(int));
+    *global_local_index = (int*)malloc((nextcf+1)*sizeof(int));
        int k = 0;
-       for (k=0; k<nintcf+1; k++){
+       for (k=0; k<nextcf+1; k++){
            (*global_local_index)[k]=-1;
        }
     
     for (i=*nintci_loc; i <= *nintcf_loc; i++) {
       (*local_global_index)[i] = start_int + i;
-      (*global_local_index)[start_int + i]=i;
+      (*global_local_index)[start_int + i] = i;
     }
     
     // Calculation of the number of external cells belonging to a process
@@ -177,6 +177,7 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
       for (i=0; i<6; i++) {
 	if (lcc[NC][i] >= nextci) {
 	  (*local_global_index)[j] = lcc[NC][i];
+	  (*global_local_index)[lcc[NC][i]] = j;
 	  j++;
 	}
       }
@@ -236,9 +237,9 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
     
    *local_global_index = (int*)malloc( (el_count + num_terms_ext)*sizeof(int) );
    /*allocate memory and initlaize global_local_index with -1*/
-    *global_local_index = (int*)malloc((nintcf+1)*sizeof(int));
+    *global_local_index = (int*)malloc((nextcf+1)*sizeof(int));
     int k = 0;
-    for (k=0; k<nintcf+1; k++){
+    for (k=0; k<nextcf+1; k++){
         (*global_local_index)[k]=-1;
     }
     
@@ -263,6 +264,7 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
 	for (i=0; i<6; i++) {
 	  if (lcc[NC][i] >= nextci) {
 	    (*local_global_index)[j] = lcc[NC][i];
+	    (*global_local_index)[lcc[NC][i]] = j;
 	    j++;
 	  }
 	}
@@ -388,6 +390,18 @@ void allread_calc_global_idx(int** local_global_index, int **global_local_index,
 						recv_counter++;
 					}
 		}
+	}
+	
+	// Code for A2.3 - extending the global_local mapping by the values received from the other processes
+	
+	// Reference position in the direc1
+	int ref_pos = (*nextcf_loc) + 1;
+	
+	for (proc_counter = 0; proc_counter < (*nghb_cnt); proc_counter++) {
+	  for (i = 0; i < (*recv_cnt)[proc_counter]; i++) {
+	    (*global_local_index)[(*recv_lst)[proc_counter][i]] = ref_pos + i;
+	  }
+	  ref_pos += (*recv_cnt)[proc_counter];
 	}
 
 	for (i =0; i<(*nghb_cnt); i++){
