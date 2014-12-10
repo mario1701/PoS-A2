@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <mpi.h>
 
 int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, int nintcf, int nextcf, int** lcc, double* bp,
                      double* bs, double* bw, double* bl, double* bn, double* be, double* bh,
@@ -41,13 +42,57 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
         return 0;
     }
 
+    
+    // Counting the number of ghost cells to extend the direc1
+    int ghost_cells_recv = 0, ghost_cells_send = 0;
+    int proc, i, j;
+    
+    for (proc = 0; proc < nghb_cnt; proc++) {
+      ghost_cells_recv += recv_cnt[proc];
+      ghost_cells_send += send_cnt[proc];
+    }
+    
+    
     /** the computation vectors */
-    double *direc1 = (double *) calloc(sizeof(double), (nextcf + 1));
+    // TODO: Why calloc the other way around?
+    double *direc1 = (double *) calloc(sizeof(double), ((nextcf + 1) + ghost_cells_recv));
     double *direc2 = (double *) calloc(sizeof(double), (nextcf + 1));
     double *adxor1 = (double *) calloc(sizeof(double), (nintcf + 1));
     double *adxor2 = (double *) calloc(sizeof(double), (nintcf + 1));
     double *dxor1 = (double *) calloc(sizeof(double), (nintcf + 1));
     double *dxor2 = (double *) calloc(sizeof(double), (nintcf + 1));
+    
+    // Determine displacements for sending
+    int **displacements = (int **) malloc(sizeof(double)*nghb_cnt);
+    int **blocklenghts = (int **) malloc(sizeof(double)*nghb_cnt);
+    
+    for(proc = 0; proc < nghb_cnt; proc++) {
+      displacements[proc] = (int*)calloc(send_cnt[proc],sizeof(int));
+      blocklenghts[proc] = (int*)calloc(send_cnt[proc],sizeof(int));
+    }
+    
+    j = 0;
+    for (proc = 0; proc < nghb_cnt; proc++) {
+      for (i = 0; i < send_cnt[proc]; i++) {
+	displacements[proc][i] = global_local_index[send_lst[proc][i]];
+	blocklenghts[proc][i] = 1;
+	//printf("proc = %d, %d\n", nghb_to_rank[proc], displacements[proc][i]);
+      }
+    }
+    
+    MPI_Request request;
+    MPI_Datatype *indextype;
+    indextype = (MPI_Datatype *) malloc(sizeof(*indextype)*nghb_cnt);
+    
+    for (proc = 0; proc < nghb_cnt; proc++) {
+      MPI_Type_indexed(send_cnt[proc], blocklenghts[proc], displacements[proc], MPI_DOUBLE, &(indextype[proc]));
+      MPI_Type_commit(&(indextype[proc]));
+    }
+    
+    // Testing
+//     for ( nc = nintci; nc <= nintcf; nc++ ) {
+// 	printf("nc = %d, %d %d %d %d %d \n", nc, lcc[nc][0], lcc[nc][1], lcc[nc][2], lcc[nc][3], lcc[nc][4], lcc[nc][5], lcc[nc][5]);
+//     }
 
     while ( iter < max_iters ) {
         /**********  START COMP PHASE 1 **********/
@@ -56,13 +101,47 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
             direc1[nc] = direc1[nc] + resvec[nc] * cgup[nc];
         }
 
+	  // Communication of direc1 - start
+	  
+	  for (proc = 0; proc < nghb_cnt; proc++) {
+// 	    MPI_Type_indexed(send_cnt[proc], blocklenghts[proc], displacements[proc], MPI_DOUBLE, &(indextype[proc]));
+// 	    MPI_Type_commit(&(indextype[proc]));
+	    //MPI_Send(direc1, 1, indextype, nghb_to_rank[proc], 0, MPI_COMM_WORLD);
+	    MPI_Isend(direc1, 1, indextype[proc], nghb_to_rank[proc], 0, MPI_COMM_WORLD, &request);
+	  }
+	  
+	  // Reference position in the direc1
+	  int ref_pos = nextcf + 1;
+	  
+	  for (proc = 0; proc < nghb_cnt; proc++) {
+	    MPI_Recv(&(direc1[ref_pos]), recv_cnt[proc], MPI_DOUBLE, nghb_to_rank[proc], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    ref_pos += recv_cnt[proc];
+	  }
+	  
+	  //printf("Comm done\n");
+	  
+	  // Communication of direc1 - stop
+        
         // compute new guess (approximation) for direc
         for ( nc = nintci; nc <= nintcf; nc++ ) {
-            direc2[nc] = bp[nc] * direc1[nc] - bs[nc] * direc1[lcc[nc][0]]
-                         - be[nc] * direc1[lcc[nc][1]] - bn[nc] * direc1[lcc[nc][2]]
-                         - bw[nc] * direc1[lcc[nc][3]] - bl[nc] * direc1[lcc[nc][4]]
-                         - bh[nc] * direc1[lcc[nc][5]];
+//             direc2[nc] = bp[nc] * direc1[nc] - bs[nc] * direc1[lcc[nc][0]]
+//                          - be[nc] * direc1[lcc[nc][1]] - bn[nc] * direc1[lcc[nc][2]]
+//                          - bw[nc] * direc1[lcc[nc][3]] - bl[nc] * direc1[lcc[nc][4]]
+//                          - bh[nc] * direc1[lcc[nc][5]];
+	  //printf("nextcf = %d\n", (nextcf + 1));
+	  //printf("nc = %d, %d %d %d %d %d %d %d \n", nc, global_local_index[lcc[nc][0]], global_local_index[lcc[nc][1]], global_local_index[lcc[nc][2]], global_local_index[lcc[nc][3]], global_local_index[lcc[nc][4]], global_local_index[lcc[nc][5]], lcc[nc][5]);
+	  
+
+		
+            direc2[nc] = bp[nc] * direc1[nc] - bs[nc] * direc1[global_local_index[lcc[nc][0]]]
+                         - be[nc] * direc1[global_local_index[lcc[nc][1]]] - bn[nc] * direc1[global_local_index[lcc[nc][2]]]
+                         - bw[nc] * direc1[global_local_index[lcc[nc][3]]] - bl[nc] * direc1[global_local_index[lcc[nc][4]]]
+                         - bh[nc] * direc1[global_local_index[lcc[nc][5]]];
+			
+			 
         }
+        
+        
         /********** END COMP PHASE 1 **********/
 
         /********** START COMP PHASE 2 **********/
@@ -157,6 +236,14 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
         /********** END COMP PHASE 2 **********/
     }
 
+    for (i = 0; i < nghb_cnt; i++){
+      free(displacements[i]);
+    }
+
+    free(displacements);
+    
+    free(indextype);
+    
     free(direc1);
     free(direc2);
     free(adxor1);
