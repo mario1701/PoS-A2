@@ -35,6 +35,12 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
         resvec[nc] = su[nc];
         resref = resref + resvec[nc] * resvec[nc];
     }
+    
+    // A2.3
+    double global_resref = 0;
+    MPI_Allreduce(&resref, &global_resref, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    resref = global_resref;
+    
 
     resref = sqrt(resref);
     if ( resref < 1.0e-15 ) {
@@ -154,6 +160,11 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
             for ( nc = nintci; nc <= nintcf; nc++ ) {
                 occ = occ + direc2[nc] * adxor1[nc];
             }
+            
+            // A2.3
+            double global_occ = 0.0;
+	    MPI_Allreduce(&occ, &global_occ, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	    occ = global_occ;
 
             oc1 = occ / cnorm[1];
             for ( nc = nintci; nc <= nintcf; nc++ ) {
@@ -170,6 +181,12 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
                 for ( nc = nintci; nc <= nintcf; nc++ ) {
                     occ = occ + direc2[nc] * adxor1[nc];
                 }
+                
+                // A2.3
+		double global_occ = 0.0;
+		MPI_Allreduce(&occ, &global_occ, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+		occ = global_occ;
+		
 
                 oc1 = occ / cnorm[1];
                 oc2 = 0;
@@ -177,6 +194,11 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
                 for ( nc = nintci; nc <= nintcf; nc++ ) {
                     occ = occ + direc2[nc] * adxor2[nc];
                 }
+                
+                // A2.3
+	
+		MPI_Allreduce(&occ, &global_occ, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+		occ = global_occ;
 
                 oc2 = occ / cnorm[2];
                 for ( nc = nintci; nc <= nintcf; nc++ ) {
@@ -195,6 +217,13 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
             cnorm[nor] = cnorm[nor] + direc2[nc] * direc2[nc];
             omega = omega + resvec[nc] * direc2[nc];
         }
+        
+	// A2.3
+	double global_cnorm_nor = 0.0, global_omega = 0.0;
+	MPI_Allreduce(&(cnorm[nor]), &global_cnorm_nor, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	MPI_Allreduce(&omega, &global_omega, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	cnorm[nor] = global_cnorm_nor;
+	omega = global_omega;
 
         omega = omega / cnorm[nor];
         double res_updated = 0.0;
@@ -203,6 +232,11 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
             res_updated = res_updated + resvec[nc] * resvec[nc];
             var[nc] = var[nc] + omega * direc1[nc];
         }
+        
+	// A2.3
+	double global_res_updated = 0.0;
+	MPI_Allreduce(&res_updated, &global_res_updated, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	res_updated = global_res_updated;
 
         res_updated = sqrt(res_updated);
         *residual_ratio = res_updated / resref;
