@@ -24,6 +24,12 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
     int nc = 0;
     int nomax = 3;
 
+//     printf("Compute solution started\n");
+//     int m=0;
+//     for (m=0;m<nextcf;m++) {
+//      printf("m = %d, nextcf = %d\n", m,  global_local_index[m]);
+//     }
+    
     /** the reference residual */
     double resref = 0.0;
 
@@ -99,6 +105,8 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
 //     for ( nc = nintci; nc <= nintcf; nc++ ) {
 // 	printf("nc = %d, %d %d %d %d %d \n", nc, lcc[nc][0], lcc[nc][1], lcc[nc][2], lcc[nc][3], lcc[nc][4], lcc[nc][5], lcc[nc][5]);
 //     }
+
+    printf("Before while loop\n");
 
     while ( iter < max_iters ) {
         /**********  START COMP PHASE 1 **********/

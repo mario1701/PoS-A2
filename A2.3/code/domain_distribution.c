@@ -482,11 +482,14 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
       
       (*nextcf_loc)[rank] = (*nextci_loc)[rank] + num_terms_ext - 1;     
       (*local_global_index)[rank] = (int*)malloc( (num_terms_int + num_terms_ext)*sizeof(int) );
-      (*global_local_index)[rank] = (int*)malloc( (nintcf+1)*sizeof(int) );
+      (*global_local_index)[rank] = (int*)malloc( (nextcf+1)*sizeof(int) );
+      
       int k = 0;
-          for (k=0; k<nintcf+1; k++){
-              (*global_local_index)[rank][k]=-1;
-          }
+      
+      for (k=0; k<nextcf+1; k++){
+	  (*global_local_index)[rank][k] = -1;
+      }
+      
       for (i=(*nintci_loc)[rank]; i <= (*nintcf_loc)[rank]; i++) {
 	(*local_global_index)[rank][i] = start_int + i;	
 	(*global_local_index)[rank][start_int + i] = i;
@@ -499,6 +502,7 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
 	for (i=0; i<6; i++) {
 	  if (lcc[NC][i] >= nextci) {
 	    (*local_global_index)[rank][j] = lcc[NC][i];
+	    (*global_local_index)[rank][lcc[NC][i]] = j;
 	    j++;
 	  }
 	}
@@ -546,8 +550,16 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
       }
       
       (*local_global_index)[rank] = (int*)malloc( (el_count[rank] + num_terms_ext)*sizeof(int) );
-      (*global_local_index)[rank] = (int*)calloc( (nintcf+1),sizeof(int) );
+      (*global_local_index)[rank] = (int*)calloc( (nextcf+1),sizeof(int) );
      
+      //TODO: Why there was nothing like that here before?
+      int k = 0;
+      for (k=0; k<nextcf+1; k++){
+        (*global_local_index)[rank][k]=-1;
+      }
+      
+      printf("After assigning -1\n");
+      
       (*nextci_loc)[rank] = el_count[rank];
       (*nextcf_loc)[rank] = el_count[rank] + num_terms_ext - 1;
       
@@ -559,6 +571,7 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
 	  for (i=0; i<6; i++) {
 	    if (lcc[NC][i] >= nextci) {
 	      (*local_global_index)[rank][j] = lcc[NC][i];
+	      (*global_local_index)[rank][lcc[NC][i]] = j;
 	      j++;
 	    }
 	  }
@@ -716,7 +729,26 @@ void oneread_calc_global_idx(int*** local_global_index, int ***global_local_inde
     					}
     		}
     	}
-
+      printf("Before ghost mapping\n");
+	// Code for A2.3 - extending the global_local mapping by the values received from the other processes
+	
+	//for (rank=0; rank<nprocs; rank++) {
+	  
+	  // Reference position in the direc1
+	  int ref_pos = (*nextcf_loc)[loop_counter] + 1;
+	  
+	  for (proc_counter = 0; proc_counter < (*nghb_cnt)[loop_counter]; proc_counter++) {
+	    for (i = 0; i < (*recv_cnt)[loop_counter][proc_counter]; i++) {
+	      (*global_local_index)[loop_counter][(*recv_lst)[loop_counter][proc_counter][i]] = ref_pos + i;
+	    }
+	    ref_pos += (*recv_cnt)[loop_counter][proc_counter];
+	  }
+	
+	  
+	//}
+	
+	// -----------------------
+    	
     	for (i =0; i<(*nghb_cnt)[loop_counter]; i++){
     		free(send_neighbour_search[i]);
     		free(recv_neighbour_search[i]);

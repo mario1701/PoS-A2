@@ -104,6 +104,7 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
     // Broadcasting the data needed by each process
         
     MPI_Bcast(nintcf, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(nextcf, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(points_count, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     if (0 == myrank){
@@ -120,12 +121,23 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
       /*special treatment for processor 0 since there is no MPI_Send for that*/
       length_loc_index = length_loc_index_array[0];
       
-      (*local_global_index) = (int*)malloc(length_loc_index*sizeof(int)); 
+      (*local_global_index) = (int*)malloc(length_loc_index*sizeof(int));
+      
+      if ((*global_local_index = (int*)malloc((*nextcf+1)*sizeof(int)))== NULL){
+	fprintf(stderr, "malloc(global_local_index) failed\n");
+	return -1;
+      }
    
       for (i=0; i<length_loc_index; i++) {
 	(*local_global_index)[i] = local_global_index_array[0][i];
       }
-
+      
+      printf("Before 0th thread treatment for global_local\n");
+      
+      for (i=0; i<(*nextcf+1); i++) {
+	(*global_local_index)[i] = global_local_index_array[0][i];
+      }
+	printf("0th thread treatment for global_local\n");
     }     
     
     /*special treatment for processor 0 ended*/
@@ -146,6 +158,12 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
 	MPI_Send(local_global_index_array[dest], length_loc_index_array[dest], MPI_INT, dest, 5, MPI_COMM_WORLD);
       }
       
+      for (dest = 1; dest<nprocs; dest++){
+	MPI_Send(global_local_index_array[dest], (*nextcf+1), MPI_INT, dest, 10, MPI_COMM_WORLD);
+      }
+      
+      printf("After sending global_local\n");
+      
     }//if (0 == myrank)
 
     if (myrank>0){
@@ -156,6 +174,15 @@ decide_key(file_in, part_type, read_type, &input_key, &part_key, &read_key);
       }
 
       MPI_Recv((*local_global_index),length_loc_index,MPI_INT,0,5,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+      
+      if ((*global_local_index = (int*)malloc((*nextcf+1)*sizeof(int)))== NULL){
+	fprintf(stderr, "malloc(global_local_index) failed\n");
+	return -1;
+      }
+      
+      //TODO: Should we free it?
+      
+      MPI_Recv((*global_local_index), (*nextcf+1), MPI_INT, 0, 10, MPI_COMM_WORLD,MPI_STATUS_IGNORE);
     }//if (myrank>0)
     
     // Communication of the array parameters ended
