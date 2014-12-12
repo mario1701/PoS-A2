@@ -10,9 +10,9 @@
 #include "util_write_files.h"
 
 void finalization(char* file_in, int nprocs, int myrank, int total_iters, double residual_ratio,
-                  int nintci, int nintcf, double* var) {
+                  int nintci, int nintcf, double* var, int* local_global_index, int* global_local_index) {
 
-   if (nprocs == 1) {
+    if (nprocs == 1) {
       
     char file_out[100];
     sprintf(file_out, "%s_summary.out", file_in);
@@ -40,12 +40,11 @@ void finalization(char* file_in, int nprocs, int myrank, int total_iters, double
     if (myrank > 0) {
       MPI_Isend(&nintcf, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &request);
       MPI_Isend(var, (nintcf+1), MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &request);
+      MPI_Isend(local_global_index, (nintcf+1), MPI_INT, 0, 1, MPI_COMM_WORLD, &request);
     }
   
      if (myrank == 0) {
        
-  
-      printf("nintcf = %d\n", global_nintcf);
        
        int i;
        double *global_var;
@@ -56,16 +55,29 @@ void finalization(char* file_in, int nprocs, int myrank, int total_iters, double
        global_var = (double*) calloc(sizeof(double), (global_nintcf - global_nintci + 1));
        
        for (i = 0; i < nintcf + 1; i++) {
-	 global_var[i] = var[i];
+	 global_var[local_global_index[i]] = var[i];
        }
        
        printf("done\n");
        
        for (proc = 1; proc < nprocs; proc++) {
 	MPI_Recv(&nintcf_loc, 1, MPI_INT, proc, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	MPI_Recv(&(global_var[ref_pos]), (nintcf_loc+1), MPI_DOUBLE, proc, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	
-	ref_pos += (nintcf_loc+1);
+	double *var_loc = (double*) calloc(sizeof(double), (nintcf_loc + 1));
+	int *local_global_index_loc = (int*) calloc(sizeof(int), (nintcf_loc + 1));
+	
+	//MPI_Recv(&(global_var[ref_pos]), (nintcf_loc+1), MPI_DOUBLE, proc, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(var_loc, (nintcf_loc+1), MPI_DOUBLE, proc, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(local_global_index_loc, (nintcf_loc+1), MPI_INT, proc, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	
+	for (i = 0; i < nintcf_loc + 1; i++) {
+	  global_var[local_global_index_loc[i]] = var_loc[i];
+	}
+	
+	free(var_loc);
+	free(local_global_index_loc);
+	
+	//ref_pos += (nintcf_loc+1);
        }
     
       char file_out[100];
@@ -84,6 +96,6 @@ void finalization(char* file_in, int nprocs, int myrank, int total_iters, double
     
      }
   }
-    
+
 }
 
