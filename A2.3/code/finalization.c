@@ -58,8 +58,6 @@ void finalization(char* file_in, int nprocs, int myrank, int total_iters, double
 	 global_var[local_global_index[i]] = var[i];
        }
        
-       printf("done\n");
-       
        for (proc = 1; proc < nprocs; proc++) {
 	MPI_Recv(&nintcf_loc, 1, MPI_INT, proc, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	

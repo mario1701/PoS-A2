@@ -106,7 +106,6 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
 // 	printf("nc = %d, %d %d %d %d %d \n", nc, lcc[nc][0], lcc[nc][1], lcc[nc][2], lcc[nc][3], lcc[nc][4], lcc[nc][5], lcc[nc][5]);
 //     }
 
-    printf("Before while loop\n");
 
     while ( iter < max_iters ) {
         /**********  START COMP PHASE 1 **********/
