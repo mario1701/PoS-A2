@@ -23,12 +23,6 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
     int nor1 = nor - 1;
     int nc = 0;
     int nomax = 3;
-
-//     printf("Compute solution started\n");
-//     int m=0;
-//     for (m=0;m<nextcf;m++) {
-//      printf("m = %d, nextcf = %d\n", m,  global_local_index[m]);
-//     }
     
     /** the reference residual */
     double resref = 0.0;
@@ -66,7 +60,7 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
     
     
     /** the computation vectors */
-    // TODO: Why calloc the other way around?
+    // TODO:
     double *direc1 = (double *) calloc(sizeof(double), ((nextcf + 1) + ghost_cells_recv));
     double *direc2 = (double *) calloc(sizeof(double), (nextcf + 1));
     double *adxor1 = (double *) calloc(sizeof(double), (nintcf + 1));
@@ -88,7 +82,6 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
       for (i = 0; i < send_cnt[proc]; i++) {
 	displacements[proc][i] = global_local_index[send_lst[proc][i]];
 	blocklenghts[proc][i] = 1;
-	//printf("proc = %d, %d\n", nghb_to_rank[proc], displacements[proc][i]);
       }
     }
     
@@ -130,8 +123,6 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
 	    MPI_Recv(&(direc1[ref_pos]), recv_cnt[proc], MPI_DOUBLE, nghb_to_rank[proc], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	    ref_pos += recv_cnt[proc];
 	  }
-	  
-	  //printf("Comm done\n");
 	  
 	  // Communication of direc1 - stop
         
