@@ -15,11 +15,11 @@
 ##                    0 h 30 min 0 secs
 #@ job_name = fire
 #@ network.MPI = sn_all,not_shared,us
-#@ initialdir = $(home)/Supercomputers/A2.2/
+#@ initialdir = $(home)/A2.3/code
 #@ output = job$(jobid).out
 #@ error = job$(jobid).err
 #@ notification=always
-#@ notify_user=mariusz.bujny@tum.de
+#@ notify_user=yunqing.dong1231989@gmail.com
 #@ queue
 . /etc/profile
 . /etc/profile.d/modules.sh
@@ -29,9 +29,5 @@ module load mpi.intel
 module load papi
 perf_off
 
-mpiexec -n 9 ./gccg drall.geo.bin classic allread
-mpiexec -n 9 ./gccg cojack.geo.bin classic allread
-mpiexec -n 9 ./gccg drall.geo.bin dual oneread
-mpiexec -n 9 ./gccg cojack.geo.bin dual oneread
-
-
+## Running 3 times cojack with text input
+mpiexec -n 9 ./gccg drall.geo.bin classic oneread
