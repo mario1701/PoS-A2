@@ -9,6 +9,7 @@
 #include <string.h>
 #include <math.h>
 #include "mpi.h"
+#include <papi.h>
 
 #include "initialization.h"
 #include "compute_solution.h"
@@ -55,6 +56,16 @@ int main(int argc, char *argv[]) {
     int *recv_cnt;    /// number of cells to be received from each neighbour (size: nghb_cnt)
     int **recv_lst;    /// lists of cells to be received from each neighbour (size: nghb_cnt x recv_cnt[*])
 
+    /* PAPI Parameters*/
+    float rtime, ptime, mflops;
+    long long flpops;
+
+    void handle_error (int retval)
+        {
+             printf("PAPI error %d: %s\n", retval, PAPI_strerror(retval));
+          exit(1);
+        }
+
 
     MPI_Init(&argc, &argv);    /// Start MPI
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    /// get current process id
@@ -82,6 +93,9 @@ int main(int argc, char *argv[]) {
     }
 
 
+    /*PAPI Test initialization*/
+    if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT) exit(1);
+
     /********** START INITIALIZATION **********/
     // read-in the input file
     int init_status = initialization(file_in, part_type, read_type, num_procs, my_rank,
@@ -106,11 +120,18 @@ int main(int argc, char *argv[]) {
     /********** END INITIALIZATION **********/
 
     /********** START COMPUTATIONAL LOOP **********/
+    if(PAPI_flops( &rtime, &ptime, &flpops,  &mflops ) != PAPI_OK) handle_error(1);
+
     int total_iters = compute_solution(num_procs, my_rank, max_iters, nintci, nintcf, nextcf, 
                     lcc, bp, bs, bw, bl, bn, be, bh,
                      cnorm, var, su, cgup, &residual_ratio,
                      local_global_index, global_local_index, nghb_cnt, 
                      nghb_to_rank, send_cnt, send_lst, recv_cnt, recv_lst);
+
+    if(PAPI_flops( &rtime, &ptime, &flpops,  &mflops ) != PAPI_OK) handle_error(1);
+
+    printf("rtime from processor %d is %lld \n", my_rank, rtime);
+
 
     /********** END COMPUTATIONAL LOOP **********/
 
