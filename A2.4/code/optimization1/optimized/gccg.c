@@ -63,6 +63,7 @@ int main(int argc, char *argv[]) {
     int **recv_lst;    /// lists of cells to be received from each neighbour (size: nghb_cnt x recv_cnt[*])
 
     /* PAPI Parameters*/
+#ifdef PAPI
     float rtime, ptime, mflops;
     long long flpops;
 
@@ -71,7 +72,7 @@ int main(int argc, char *argv[]) {
              printf("PAPI error %d: %s\n", retval, PAPI_strerror(retval));
           exit(1);
         }
-
+#endif
 
     MPI_Init(&argc, &argv);    /// Start MPI
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    /// get current process id
