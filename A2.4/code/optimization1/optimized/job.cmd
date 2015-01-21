@@ -3,7 +3,7 @@
 ## optional: energy policy tags
 ##
 # DO NOT USE environment = COPY_ALL
-#@ job_type = MPICH
+#@ job_type = parallel
 #@ class = test
 #@ node = 1
 ### schedule the job to 2 to 4 islands 
@@ -24,9 +24,6 @@
 . /etc/profile
 . /etc/profile.d/modules.sh
 #setup of environment
-module unload mpi.ibm
-module load mpi.intel
-module load papi
 perf_off
 
 ## Running 3 times cojack with text input
