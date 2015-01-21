@@ -100,8 +100,9 @@ int main(int argc, char *argv[]) {
 
 
     /*PAPI Test initialization*/
+#ifdef PAPI
     if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT) exit(1);
-
+#endif
     /********** START INITIALIZATION **********/
     // read-in the input file
     int init_status = initialization(file_in, part_type, read_type, num_procs, my_rank,
