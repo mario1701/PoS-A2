@@ -4,12 +4,18 @@
  * @author E. Xue, V. Petkov, A. Berariu
  * @date 22-May-2009, 22-Oct-2012, 13-Nov-2014
  */
+ 
+ //#define PAPI
+ 
+ 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include "mpi.h"
+#ifdef PAPI
 #include <papi.h>
+#endif
 
 #include "initialization.h"
 #include "compute_solution.h"
@@ -120,7 +126,9 @@ int main(int argc, char *argv[]) {
     /********** END INITIALIZATION **********/
 
     /********** START COMPUTATIONAL LOOP **********/
+#ifdef PAPI
     if(PAPI_flops( &rtime, &ptime, &flpops,  &mflops ) != PAPI_OK) handle_error(1);
+#endif
 
     int total_iters = compute_solution(num_procs, my_rank, max_iters, nintci, nintcf, nextcf, 
                     lcc, bp, bs, bw, bl, bn, be, bh,
@@ -128,9 +136,11 @@ int main(int argc, char *argv[]) {
                      local_global_index, global_local_index, nghb_cnt, 
                      nghb_to_rank, send_cnt, send_lst, recv_cnt, recv_lst);
 
+#ifdef PAPI
     if(PAPI_flops( &rtime, &ptime, &flpops,  &mflops ) != PAPI_OK) handle_error(1);
 
-    printf("rtime from processor %d is %lld \n", my_rank, rtime);
+    printf("processor: %d , ptime:%f , rtime: %f \n", my_rank, ptime, rtime);
+#endif
 
 
     /********** END COMPUTATIONAL LOOP **********/
