@@ -13,7 +13,6 @@ void finalization(char* file_in, int nprocs, int myrank, int total_iters, double
                   int nintci, int nintcf, double* var, int* local_global_index, int* global_local_index) {
 
     if (nprocs == 1) {
-      
     char file_out[100];
     sprintf(file_out, "%s_summary.out", file_in);
     //sprintf(file_out, "%s_summary.rank%d.out", file_in, myrank);
@@ -38,14 +37,13 @@ void finalization(char* file_in, int nprocs, int myrank, int total_iters, double
     global_nintcf = global_num_internal_cells - 1;
     
     if (myrank > 0) {
-      MPI_Isend(&nintcf, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &request);
-      MPI_Isend(var, (nintcf+1), MPI_DOUBLE, 0, 1, MPI_COMM_WORLD, &request);
-      MPI_Isend(local_global_index, (nintcf+1), MPI_INT, 0, 1, MPI_COMM_WORLD, &request);
+      MPI_Isend(&nintcf, 1, MPI_INT, 0, (3*myrank), MPI_COMM_WORLD, &request);
+      MPI_Isend(var, (nintcf+1), MPI_DOUBLE, 0, (3*myrank+1), MPI_COMM_WORLD, &request);
+      MPI_Isend(local_global_index, (nintcf+1), MPI_INT, 0, (3*myrank+2), MPI_COMM_WORLD, &request);
+      MPI_Barrier(MPI_COMM_WORLD);
     }
   
      if (myrank == 0) {
-       
-       
        int i;
        double *global_var;
        int proc = 0;
@@ -59,7 +57,7 @@ void finalization(char* file_in, int nprocs, int myrank, int total_iters, double
        }
        
        for (proc = 1; proc < nprocs; proc++) {
-	MPI_Recv(&nintcf_loc, 1, MPI_INT, proc, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(&nintcf_loc, 1, MPI_INT, proc, 3*proc, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	
 	double *var_loc = (double*) calloc(sizeof(double), (nintcf_loc + 1));
 	int *local_global_index_loc = (int*) calloc(sizeof(int), (nintcf_loc + 1));
@@ -76,8 +74,8 @@ void finalization(char* file_in, int nprocs, int myrank, int total_iters, double
 	free(local_global_index_loc);
 	
 	//ref_pos += (nintcf_loc+1);
-       }
-    
+    }//for (proc = 1; proc < nprocs; proc++)
+       MPI_Barrier(MPI_COMM_WORLD);
       char file_out[100];
       sprintf(file_out, "%s_summary.out", file_in);
       //sprintf(file_out, "%s_summary.rank%d.out", file_in, myrank);

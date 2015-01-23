@@ -127,6 +127,7 @@ int main(int argc, char *argv[]) {
 
     /********** START COMPUTATIONAL LOOP **********/
 #ifdef PAPI
+    MPI_Barrier(MPI_COMM_WORLD);
     if(PAPI_flops( &rtime, &ptime, &flpops,  &mflops ) != PAPI_OK) handle_error(1);
 #endif
     int total_iters = compute_solution(num_procs, my_rank, max_iters, nintci, nintcf, nextcf, 
@@ -141,7 +142,9 @@ int main(int argc, char *argv[]) {
     /********** END COMPUTATIONAL LOOP **********/
 
     /********** START FINALIZATION **********/
+    MPI_Barrier(MPI_COMM_WORLD);
     finalization(file_in, num_procs, my_rank, total_iters, residual_ratio, nintci, nintcf, var, local_global_index, global_local_index);
+    MPI_Barrier(MPI_COMM_WORLD);
     /********** END FINALIZATION **********/
 
     // cleanup allocated memory
