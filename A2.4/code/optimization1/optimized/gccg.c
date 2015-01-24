@@ -5,7 +5,8 @@
  * @date 22-May-2009, 22-Oct-2012, 13-Nov-2014
  */
  
- //#define PAPI
+//#define PAPI
+#define SCOREP
  
  
 #include <stdio.h>
@@ -16,6 +17,9 @@
 #ifdef PAPI
 #include <papi.h>
 #endif
+#ifdef SCOREP
+#include <scorep/SCOREP_User.h>
+#endif
 
 #include "initialization.h"
 #include "compute_solution.h"
@@ -23,6 +27,17 @@
 #include "test_functions.h"
 
 int main(int argc, char *argv[]) {
+  
+    #ifdef SCOREP
+    SCOREP_USER_REGION_DEFINE(handle_initialization);
+    SCOREP_USER_REGION_DEFINE(handle_computation);
+    SCOREP_USER_REGION_DEFINE(handle_finalization);
+    #endif
+  
+    #ifdef SCOREP
+    SCOREP_USER_REGION_BEGIN( handle_initialization, "INITIALIZATION",SCOREP_USER_REGION_TYPE_COMMON );
+    #endif
+    
     int my_rank, num_procs, i;
 
     const int max_iters = 10000;    /// maximum number of iteration to perform
@@ -63,7 +78,6 @@ int main(int argc, char *argv[]) {
     int **recv_lst;    /// lists of cells to be received from each neighbour (size: nghb_cnt x recv_cnt[*])
 
     /* PAPI Parameters*/
-#ifdef PAPI
     float rtime, ptime, mflops;
     long long flpops;
 
@@ -72,7 +86,7 @@ int main(int argc, char *argv[]) {
              printf("PAPI error %d: %s\n", retval, PAPI_strerror(retval));
           exit(1);
         }
-#endif
+
 
     MPI_Init(&argc, &argv);    /// Start MPI
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);    /// get current process id
@@ -99,7 +113,7 @@ int main(int argc, char *argv[]) {
         MPI_Abort(MPI_COMM_WORLD, -1);
     }
 
-
+    
     /*PAPI Test initialization*/
 #ifdef PAPI
     if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT) exit(1);
@@ -127,6 +141,13 @@ int main(int argc, char *argv[]) {
    
     /********** END INITIALIZATION **********/
 
+      #ifdef SCOREP
+      SCOREP_USER_REGION_END( handle_initialization );
+      SCOREP_USER_REGION_BEGIN( handle_computation, "COMPUTATION",SCOREP_USER_REGION_TYPE_COMMON );
+      #endif
+    
+        MPI_Barrier(MPI_COMM_WORLD);
+    
     /********** START COMPUTATIONAL LOOP **********/
 #ifdef PAPI
     if(PAPI_flops( &rtime, &ptime, &flpops,  &mflops ) != PAPI_OK) handle_error(1);
@@ -146,6 +167,11 @@ int main(int argc, char *argv[]) {
 
 
     /********** END COMPUTATIONAL LOOP **********/
+    
+      #ifdef SCOREP
+      SCOREP_USER_REGION_END( handle_computation );
+      SCOREP_USER_REGION_BEGIN( handle_finalization, "FINALIZATION",SCOREP_USER_REGION_TYPE_COMMON );
+      #endif
 
     /********** START FINALIZATION **********/
     finalization(file_in, num_procs, my_rank, total_iters, residual_ratio, nintci, nintcf, var, local_global_index, global_local_index);
@@ -189,9 +215,12 @@ int main(int argc, char *argv[]) {
     }
     free(recv_lst);
 
-
     MPI_Finalize();    /// cleanup MPI
 
+    #ifdef SCOREP
+    SCOREP_USER_REGION_END( handle_finalization );
+    #endif
+    
     return 0;
 }
 

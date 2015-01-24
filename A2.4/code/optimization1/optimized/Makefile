@@ -5,7 +5,7 @@
 ####################################################################
 
 CC = $(PREP) mpicc
-CFLAGS = -Wall -g -O0 $(METIS_INC) $(PAPI_INC) # -lmetis 
+CFLAGS = -Wall -g -O3 $(METIS_INC) $(PAPI_INC) # -lmetis 
 LIBS = -lm $(METIS_LIB) $(PAPI_LIB)
 
 LIBPOS=libpos.a
