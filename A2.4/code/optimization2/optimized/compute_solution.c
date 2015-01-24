@@ -5,16 +5,45 @@
  * @date 22-Oct-2012
  * @author V. Petkov
  */
+
+#define OVERLAPPING
+
+//#define SCOREP
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <mpi.h>
 
+#ifdef SCOREP
+#include <scorep/SCOREP_User.h>
+#endif
+
 int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, int nintcf, int nextcf, int** lcc, double* bp,
                      double* bs, double* bw, double* bl, double* bn, double* be, double* bh,
                      double* cnorm, double* var, double *su, double* cgup, double* residual_ratio,
                      int* local_global_index, int* global_local_index, int nghb_cnt, 
-                     int* nghb_to_rank, int* send_cnt, int** send_lst, int *recv_cnt, int** recv_lst){
+                     int* nghb_to_rank, int* send_cnt, int** send_lst, int *recv_cnt, int** recv_lst, int int_access_cnt, int ext_access_cnt, int* int_access, int* ext_access){
+  
+  // Add SCOREP manual instrumentation
+  #ifdef SCOREP
+  SCOREP_USER_REGION_DEFINE(handle1);
+  SCOREP_USER_REGION_DEFINE(handle2);
+  SCOREP_USER_REGION_DEFINE(handle3);
+  SCOREP_USER_REGION_DEFINE(handle4);
+  SCOREP_USER_REGION_DEFINE(handle5);
+  SCOREP_USER_REGION_DEFINE(handle6);
+  SCOREP_USER_REGION_DEFINE(handle7);
+  SCOREP_USER_REGION_DEFINE(handle8);
+  SCOREP_USER_REGION_DEFINE(handle9);
+  SCOREP_USER_REGION_DEFINE(handle10);
+  SCOREP_USER_REGION_DEFINE(handle_break);
+  #endif
+  
+  #ifdef SCOREP
+  SCOREP_USER_REGION_BEGIN( handle1, "handle1 - Initialization of variables and reference residuals.",SCOREP_USER_REGION_TYPE_COMMON );
+  #endif
+  
     /** parameters used in gccg */
     int iter = 1;
     int if1 = 0;
@@ -36,10 +65,20 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
         resref = resref + resvec[nc] * resvec[nc];
     }
     
+    #ifdef SCOREP
+    SCOREP_USER_REGION_END( handle1 );
+    SCOREP_USER_REGION_BEGIN( handle2, "handle2 - 1st Allreduce.",SCOREP_USER_REGION_TYPE_COMMON );
+    #endif
+    
     // A2.3
     double global_resref = 0;
     MPI_Allreduce(&resref, &global_resref, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     resref = global_resref;
+    
+    #ifdef SCOREP
+    SCOREP_USER_REGION_END( handle2 );
+    SCOREP_USER_REGION_BEGIN( handle3, "handle3 - Calculation of the residue sum.",SCOREP_USER_REGION_TYPE_COMMON );
+    #endif
     
 
     resref = sqrt(resref);
@@ -47,6 +86,11 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
         fprintf(stderr, "Residue sum less than 1.e-15 - %lf\n", resref);
         return 0;
     }
+    
+    #ifdef SCOREP
+    SCOREP_USER_REGION_END( handle3 );
+    SCOREP_USER_REGION_BEGIN( handle4, "handle4 - Memory allocation.",SCOREP_USER_REGION_TYPE_COMMON );
+    #endif
 
     
     // Counting the number of ghost cells to extend the direc1
@@ -85,8 +129,12 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
       }
     }
     
-    MPI_Request request1, request2;
+    MPI_Request *request1, *request2;
+    request1 = (MPI_Request *) malloc(sizeof(*request1)*nghb_cnt);
+    request2 = (MPI_Request *) malloc(sizeof(*request2)*nghb_cnt);
+    
     MPI_Status status;
+    
     MPI_Datatype *indextype;
     indextype = (MPI_Datatype *) malloc(sizeof(*indextype)*nghb_cnt);
     
@@ -95,10 +143,10 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
       MPI_Type_commit(&(indextype[proc]));
     }
     
-    // Testing
-//     for ( nc = nintci; nc <= nintcf; nc++ ) {
-// 	printf("nc = %d, %d %d %d %d %d \n", nc, lcc[nc][0], lcc[nc][1], lcc[nc][2], lcc[nc][3], lcc[nc][4], lcc[nc][5], lcc[nc][5]);
-//     }
+    #ifdef SCOREP
+    SCOREP_USER_REGION_END( handle4 );
+    SCOREP_USER_REGION_BEGIN( handle5, "handle5 - Computation phase1. direc1 update.",SCOREP_USER_REGION_TYPE_COMMON );
+    #endif
 
 
     while ( iter < max_iters ) {
@@ -108,36 +156,45 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
             direc1[nc] = direc1[nc] + resvec[nc] * cgup[nc];
         }
 
+	  #ifdef SCOREP
+	  SCOREP_USER_REGION_END( handle5 );
+	  SCOREP_USER_REGION_BEGIN( handle6, "handle6 - Computation phase1. direc1 communication",SCOREP_USER_REGION_TYPE_COMMON );
+	  #endif
+        
 	  // Communication of direc1 - start
 	  
 	  for (proc = 0; proc < nghb_cnt; proc++) {
-// 	    MPI_Type_indexed(send_cnt[proc], blocklenghts[proc], displacements[proc], MPI_DOUBLE, &(indextype[proc]));
-// 	    MPI_Type_commit(&(indextype[proc]));
-	    //MPI_Send(direc1, 1, indextype, nghb_to_rank[proc], 0, MPI_COMM_WORLD);
-	    MPI_Isend(direc1, 1, indextype[proc], nghb_to_rank[proc], 0, MPI_COMM_WORLD, &request1);
+	    MPI_Isend(direc1, 1, indextype[proc], nghb_to_rank[proc], 0, MPI_COMM_WORLD, &(request1[proc]));
 	  }
 	  
 	  // Reference position in the direc1
 	  int ref_pos = nextcf + 1;
 	  
 	  for (proc = 0; proc < nghb_cnt; proc++) {
-	    MPI_Irecv(&(direc1[ref_pos]), recv_cnt[proc], MPI_DOUBLE, nghb_to_rank[proc], 0, MPI_COMM_WORLD, &request2);
+ 
+	    #ifdef OVERLAPPING
+ 	    MPI_Irecv(&(direc1[ref_pos]), recv_cnt[proc], MPI_DOUBLE, nghb_to_rank[proc], 0, MPI_COMM_WORLD, &(request2[proc]));
+	    #else
+	    MPI_Recv(&(direc1[ref_pos]), recv_cnt[proc], MPI_DOUBLE, nghb_to_rank[proc], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    #endif
+	    
 	    ref_pos += recv_cnt[proc];
-	  }
 
-	MPI_Wait(&request2, &status);
-	  
+	  }
+	 
 	  // Communication of direc1 - stop
-        
-        // compute new guess (approximation) for direc
-        for ( nc = nintci; nc <= nintcf; nc++ ) {
-//             direc2[nc] = bp[nc] * direc1[nc] - bs[nc] * direc1[lcc[nc][0]]
-//                          - be[nc] * direc1[lcc[nc][1]] - bn[nc] * direc1[lcc[nc][2]]
-//                          - bw[nc] * direc1[lcc[nc][3]] - bl[nc] * direc1[lcc[nc][4]]
-//                          - bh[nc] * direc1[lcc[nc][5]];
-	  //printf("nextcf = %d\n", (nextcf + 1));
-	  //printf("nc = %d, %d %d %d %d %d %d %d \n", nc, global_local_index[lcc[nc][0]], global_local_index[lcc[nc][1]], global_local_index[lcc[nc][2]], global_local_index[lcc[nc][3]], global_local_index[lcc[nc][4]], global_local_index[lcc[nc][5]], lcc[nc][5]);
 	  
+	  #ifdef SCOREP
+	  SCOREP_USER_REGION_END( handle6 );
+	  SCOREP_USER_REGION_BEGIN( handle7, "handle7 - Computation phase1. direc2 computation",SCOREP_USER_REGION_TYPE_COMMON );
+	  #endif
+        
+	#ifdef OVERLAPPING
+	for ( i = 0; i < int_access_cnt; i++ ) {
+	nc = int_access[i];
+	#else
+	for ( nc = nintci; nc <= nintcf; nc++ ) {
+	#endif
 
 		
             direc2[nc] = bp[nc] * direc1[nc] - bs[nc] * direc1[global_local_index[lcc[nc][0]]]
@@ -147,9 +204,32 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
 			
 			 
         }
-        
+
+        #ifdef OVERLAPPING
+ 	  for (proc = 0; proc < nghb_cnt; proc++) {
+ 		MPI_Wait(&(request2[proc]), &status);
+ 	  }
+	
+	for ( i = 0; i < ext_access_cnt; i++ ) {
+	nc = ext_access[i];
+
+		
+            direc2[nc] = bp[nc] * direc1[nc] - bs[nc] * direc1[global_local_index[lcc[nc][0]]]
+                         - be[nc] * direc1[global_local_index[lcc[nc][1]]] - bn[nc] * direc1[global_local_index[lcc[nc][2]]]
+                         - bw[nc] * direc1[global_local_index[lcc[nc][3]]] - bl[nc] * direc1[global_local_index[lcc[nc][4]]]
+                         - bh[nc] * direc1[global_local_index[lcc[nc][5]]];
+			
+			 
+        }
+        #endif
+      
         
         /********** END COMP PHASE 1 **********/
+	
+	  #ifdef SCOREP
+	  SCOREP_USER_REGION_END( handle7 );
+	  SCOREP_USER_REGION_BEGIN( handle8, "handle8 - Computation phase2. occ computation",SCOREP_USER_REGION_TYPE_COMMON );
+	  #endif
 
         /********** START COMP PHASE 2 **********/
         // execute normalization steps
@@ -210,6 +290,11 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
                 if2++;
             }
         }
+        
+       #ifdef SCOREP
+      SCOREP_USER_REGION_END( handle8 );
+      SCOREP_USER_REGION_BEGIN( handle9, "handle9 - Computation phase2. residual_ratio computation - before break",SCOREP_USER_REGION_TYPE_COMMON );
+      #endif
 
         // compute the new residual
         cnorm[nor] = 0;
@@ -242,8 +327,15 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
         res_updated = sqrt(res_updated);
         *residual_ratio = res_updated / resref;
 
+       #ifdef SCOREP
+      SCOREP_USER_REGION_END( handle9 );
+      #endif
         // exit on no improvements of residual
         if ( *residual_ratio <= 1.0e-10 ) break;
+
+      #ifdef SCOREP
+      SCOREP_USER_REGION_BEGIN( handle_break, "handle9 - Computation phase2. residual_ratio computation - after break",SCOREP_USER_REGION_TYPE_COMMON );
+      #endif
 
         iter++;
 
@@ -270,6 +362,11 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
         nor1 = nor - 1;
         /********** END COMP PHASE 2 **********/
     }
+    
+      #ifdef SCOREP
+      SCOREP_USER_REGION_END( handle_break );
+      SCOREP_USER_REGION_BEGIN( handle10, "handle10 - Memory freeing",SCOREP_USER_REGION_TYPE_COMMON );
+      #endif
 
     for (i = 0; i < nghb_cnt; i++){
       free(displacements[i]);
@@ -286,8 +383,18 @@ int compute_solution(int nprocs, int myrank, const int max_iters, int nintci, in
     free(dxor1);
     free(dxor2);
     free(resvec);
+    
+    free(request1);
+    free(request2);
 
     return iter;
+    
+      #ifdef SCOREP
+      SCOREP_USER_REGION_END( handle10 );
+      #endif
+
+    
+
 }
 
 

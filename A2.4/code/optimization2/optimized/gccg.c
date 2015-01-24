@@ -4,9 +4,11 @@
  * @author E. Xue, V. Petkov, A. Berariu
  * @date 22-May-2009, 22-Oct-2012, 13-Nov-2014
  */
- 
- //#define PAPI
- 
+
+#define OVERLAPPING
+
+#define PAPI
+//#define SCOREP 
  
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,6 +18,9 @@
 #ifdef PAPI
 #include <papi.h>
 #endif
+#ifdef SCOREP
+#include <scorep/SCOREP_User.h>
+#endif
 
 #include "initialization.h"
 #include "compute_solution.h"
@@ -23,6 +28,17 @@
 #include "test_functions.h"
 
 int main(int argc, char *argv[]) {
+  
+    #ifdef SCOREP
+    SCOREP_USER_REGION_DEFINE(handle_initialization);
+    SCOREP_USER_REGION_DEFINE(handle_computation);
+    SCOREP_USER_REGION_DEFINE(handle_finalization);
+    #endif
+  
+    #ifdef SCOREP
+    SCOREP_USER_REGION_BEGIN( handle_initialization, "INITIALIZATION",SCOREP_USER_REGION_TYPE_COMMON );
+    #endif
+    
     int my_rank, num_procs, i;
 
     const int max_iters = 10000;    /// maximum number of iteration to perform
@@ -98,7 +114,7 @@ int main(int argc, char *argv[]) {
         MPI_Abort(MPI_COMM_WORLD, -1);
     }
 
-
+    
     /*PAPI Test initialization*/
 #ifdef PAPI
     if (PAPI_library_init(PAPI_VER_CURRENT) != PAPI_VER_CURRENT) exit(1);
@@ -125,7 +141,63 @@ int main(int argc, char *argv[]) {
 
    
     /********** END INITIALIZATION **********/
+    
+    /********** START TESTING OVERLAPPING COMMUNICATION **********/
+    
+    int *int_access, *ext_access;
+       
+    int j, nc;	
+    int int_access_cnt = 0;
 
+    #ifdef OVERLAPPING
+
+    for ( nc = nintci; nc <= nintcf; nc++ ) {
+      
+	    if ((global_local_index[lcc[nc][0]] <= nintcf) && (global_local_index[lcc[nc][1]] <= nintcf) && (global_local_index[lcc[nc][2]] <= nintcf) && (global_local_index[lcc[nc][3]] <= nintcf) && (global_local_index[lcc[nc][4]] <= nintcf) && (global_local_index[lcc[nc][5]] <= nintcf)) {
+
+		    int_access_cnt++;
+	    }
+    }
+    
+	#endif
+
+	    int ext_access_cnt = nintcf+1-int_access_cnt;
+	
+	#ifdef OVERLAPPING
+	    
+	    int_access = (int *) malloc(sizeof(*int_access)*int_access_cnt);
+	    ext_access = (int *) malloc(sizeof(*ext_access)*ext_access_cnt);
+
+    
+	    
+	    i = 0;
+	    j = 0;
+
+    for ( nc = nintci; nc <= nintcf; nc++ ) {
+      
+	    if ((global_local_index[lcc[nc][0]] <= nintcf) && (global_local_index[lcc[nc][1]] <= nintcf) && (global_local_index[lcc[nc][2]] <= nintcf) && (global_local_index[lcc[nc][3]] <= nintcf) && (global_local_index[lcc[nc][4]] <= nintcf) && (global_local_index[lcc[nc][5]] <= nintcf)) {
+
+		    int_access[i] = nc;
+		    i++;
+	    }
+	    else
+	    {
+		    ext_access[j] = nc;
+		    j++;
+	    }
+    }
+    
+    #endif
+
+   /********** END TESTING OVERLAPPING COMMUNICATION **********/
+
+      #ifdef SCOREP
+      SCOREP_USER_REGION_END( handle_initialization );
+      SCOREP_USER_REGION_BEGIN( handle_computation, "COMPUTATION",SCOREP_USER_REGION_TYPE_COMMON );
+      #endif
+    
+      MPI_Barrier(MPI_COMM_WORLD);
+    
     /********** START COMPUTATIONAL LOOP **********/
 #ifdef PAPI
     if(PAPI_flops( &rtime, &ptime, &flpops,  &mflops ) != PAPI_OK) handle_error(1);
@@ -135,7 +207,7 @@ int main(int argc, char *argv[]) {
                     lcc, bp, bs, bw, bl, bn, be, bh,
                      cnorm, var, su, cgup, &residual_ratio,
                      local_global_index, global_local_index, nghb_cnt, 
-                     nghb_to_rank, send_cnt, send_lst, recv_cnt, recv_lst);
+                     nghb_to_rank, send_cnt, send_lst, recv_cnt, recv_lst, int_access_cnt, ext_access_cnt, int_access, ext_access);
 
 #ifdef PAPI
     if(PAPI_flops( &rtime, &ptime, &flpops,  &mflops ) != PAPI_OK) handle_error(1);
@@ -145,6 +217,11 @@ int main(int argc, char *argv[]) {
 
 
     /********** END COMPUTATIONAL LOOP **********/
+    
+      #ifdef SCOREP
+      SCOREP_USER_REGION_END( handle_computation );
+      SCOREP_USER_REGION_BEGIN( handle_finalization, "FINALIZATION",SCOREP_USER_REGION_TYPE_COMMON );
+      #endif
 
     /********** START FINALIZATION **********/
     finalization(file_in, num_procs, my_rank, total_iters, residual_ratio, nintci, nintcf, var, local_global_index, global_local_index);
@@ -163,6 +240,17 @@ int main(int argc, char *argv[]) {
     free(be);
     free(bs);
     free(elems);
+    
+    /********** START TESTING OVERLAPPING COMMUNICATION **********/
+    
+    #ifdef OVERLAPPING
+    
+	free(int_access);
+	free(ext_access);
+	
+    #endif
+	
+    /********** END TESTING OVERLAPPING COMMUNICATION **********/
 
     for ( i = 0; i < nintcf + 1; i++ ) {
         free(lcc[i]);
@@ -188,9 +276,12 @@ int main(int argc, char *argv[]) {
     }
     free(recv_lst);
 
-
     MPI_Finalize();    /// cleanup MPI
 
+    #ifdef SCOREP
+    SCOREP_USER_REGION_END( handle_finalization );
+    #endif
+    
     return 0;
 }
 
