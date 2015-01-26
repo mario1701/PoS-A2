@@ -1,0 +1,14 @@
+#!/bin/bash
+
+rm *.vtk
+rm *.out
+rm *.err
+rm pstats.dat
+rm pstats_*dat
+
+llsubmit job1.cmd
+llsubmit job2.cmd
+llsubmit job4.cmd
+llsubmit job8.cmd
+llsubmit job16.cmd
+llsubmit job32.cmd
